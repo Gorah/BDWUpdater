@@ -22,4 +22,6 @@ $data = array('filePath' => $path,
 
 run_update($data);
 
+unlink($path);
+
 ?>
