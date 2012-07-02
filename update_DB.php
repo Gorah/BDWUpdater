@@ -1,6 +1,8 @@
 <?php
 include "../common/db_connection_PDO.php";
 
+//function that dispaches task to correct action related functions and prepares 
+//data for it to run. This is controller function for the whole update process
 function run_update($inputData){
     switch($inputData['actionType']){
         case 'mig':
@@ -15,17 +17,30 @@ function run_update($inputData){
 }
 
 
+// data fetching from the csv file with data. With each row fetched function 
+// fires off chain of update functions to apply data to the DB
 function getArray($inputData){
 //  file handle  pointing to uploaded file
     $fh = fopen($inputData['path'], "r");
     
     
-//  parsing csv file - each row is imported as an array  
+//  parsing csv file - each row is imported as an array then sent to a function 
+//  for further actions. Function name is passed in and chosen by the type of 
+//  update run selected by the user.
     while (($data = fgetcsv($fh)) !== FALSE) {
         call_user_func($inputData['functName'], $data);
     }
     
 }
+
+//=============================================================================
+// >>>MIG DATA UPLOAD PART
+//=============================================================================
+
+//**************************************
+//** Add New Employee to DB Section
+//**************************************
+
 
 //    receives a row of data in form of an array and processes it against DB
 function migGetAction($array){
@@ -68,7 +83,8 @@ function test_newHire($eeID){
     return $result;
 }
 
-
+//wrapper function that fires off all the updates one after another ensuring 
+//that all details are written to DB and are added in correct order
 function insert_NewEE($csv){
 
     insertToEmployee($csv);
@@ -78,6 +94,10 @@ function insert_NewEE($csv){
     insertJobDetails($csv);
     
 }
+
+//***********************************************
+//** Insert SQL functions for New Employee section
+//***********************************************
 
 function insertToEmployee($csv){
     //    prepare insert for main EE table
@@ -163,6 +183,12 @@ function insertJobDetails($csv){
     unset($dbh);
 }
 
+//***********************************************
+//** End of Insert SQL functions for New Employee section
+//***********************************************
+
+
+
 //test if employee is Full Time or Part Time, basing on his FTE
 function time_scale($FTE){
     
@@ -185,8 +211,19 @@ function contract_Type($val){
      
 }
 
+//**************************************
+//** END OF: Add New Employee to DB Section
+//**************************************
 
 function update_EE($csv){
     
 }
+
+
+//=============================================================================
+// >>>GTT UPLOAD PART
+//=============================================================================
+
+
+//stuff yet to come
 ?>
