@@ -70,8 +70,121 @@ function test_newHire($eeID){
 
 
 function insert_NewEE($csv){
+
+    insertToEmployee($csv);
+    insertActions($csv);
+    insertActions($csv);
+    insertOpsMru($csv);
+    insertJobDetails($csv);
     
 }
+
+function insertToEmployee($csv){
+    //    prepare insert for main EE table
+    $SQL = "INSERT INTO tHR_Employee (ID, FirstName, LastName, Email) VALUES ("
+        . $csv[3] .", '" .$csv[2] ."', '" .$csv[1] ."', '" .$csv[4] ."');";
+    
+    //    run the query 
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+    
+    unset($qry);
+    unset($dbh);
+}
+
+function insertActions($csv){
+    //    prepare insert into Actions table
+    $SQL= "INSERT INTO tHR_Actions (EEID, ActionType, ReasonCode, StartDate, "
+        ."EndDate, ModifiedDate, ModifiedBy, EmploymentStatus) VALUES (" .$csv[3]
+        .", 'New Hire', 'New Hire', '" .date('Y-m-d', strtotime($csv[12])) ."', "
+        ."'9999-12-31', '" .date("Y-m-d H:i:s", time()) ."', 'Mass Upload', '"
+        .$csv[11] ."');";
+    
+     //    run the query 
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+    
+    unset($qry);
+    unset($dbh);
+}
+
+function insertDate($csv){
+    //    insert original hire date into Date Specs table
+    $SQL = "INSERT INTO tHR_DateSpecs (EmpID, DateType, DateValue) VALUES (" 
+        .$csdv[3] .", 'Original Hire Date', '" .date('Y-m-d', strtotime($csv[12]))
+        . "');";
+     //    run the query 
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+    
+    unset($qry);
+    unset($dbh);
+}
+
+function insertOpsMru($csv){
+    //   insert EE ID into OpsMRU table to identify which MRU employee belongs to 
+//   before he's added to his work group
+    $SQL = "INSERT INTO tHR_OpsMRU (ID, MRU) VALUES (" .$csv[3] .", '" .$csv[8]
+        ."');";
+    
+     //    run the query 
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+    
+    unset($qry);
+    unset($dbh);
+}
+
+function insertJobDetails($csv){
+//    get info if employee is full time or part time
+     $fPT = time_scale($csv[13]);
+//    translate type of cotract from MIG ->BDW
+     $wCtr = contract_Type($csv[0]);
+     
+     
+//     prepare insert query for Job Datails table. NOTE: cost center format of 
+//     PLXXXXX... is used. To change it to CDXXXXX... format change $csv[7] to $csv[6]
+    $SQL = "INSERT INTO tHR_JobDetails (EEID, Project, WorkContractType, CostCenter"
+        .", JobCode, FTE, FullPartTime, ModifiedBy, StartDate, EndDate, ModifiedDate)"
+        ."VALUES (" .$csv[3] .", '" .$csv[8] ."', '" .$wCtr ."', '" .$csv[7] ."', '"
+        .$csv[10] ."', " .$csv[13] .", '" .$fPT ."', 'Mass Upload', '" .date('Y-m-d', strtotime($csv[12]))
+        ."', '9999-12-31', '" .date("Y-m-d H:i:s", time()) ."');";
+    
+      //    run the query 
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+    
+    unset($qry);
+    unset($dbh);
+}
+
+//test if employee is Full Time or Part Time, basing on his FTE
+function time_scale($FTE){
+    
+//    convert FTE from string to float to make check if FTE < 1, then it's part time
+    $FTE = (float) $FTE;
+    if ($FTE <1){
+        return('Part Time');
+    } else {
+        return('Full Time');
+    }
+}
+
+function contract_Type($val){
+    //     translate value of work contract from MIG to BDW one
+     if($val == 'Regular'){
+         return("Permanent");
+     } else {
+         return $val;
+     }
+     
+}
+
 
 function update_EE($csv){
     
