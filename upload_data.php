@@ -1,5 +1,11 @@
 <?php
 
+//this script takes csv file and action type from html form which called it.
+//Script does copy the file to /uploads folder, where the file is accessed by 
+//the updater that's being called with run_update(); function.
+//after updaters job is done, script removes the file from the folder cleaning 
+//up after itself.
+
 //taking file name from uploaded file and creating file path&name
 $SafeFile = basename($_FILES['ufile']['name']); 
 $uploaddir = "uploads/";
@@ -22,6 +28,7 @@ $data = array('filePath' => $path,
 
 run_update($data);
 
+//removing the file from the server
 unlink($path);
 
 ?>
