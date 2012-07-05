@@ -4,5 +4,6 @@
     <option value="n/a">choose update type</option>
     <option value="mig">MiG employee list</option>
 </select><br/>
+<input type="text" name="timeStamp" /><br/>
 <input type="submit" value="Upload" />
 </form> 
