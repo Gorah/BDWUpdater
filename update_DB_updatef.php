@@ -31,6 +31,9 @@ function update_CostCentr($arr){
 //    Inserting is done by re-using insert function
     insertJobDetails($csv);
     
+    unset($qry);
+    unset($dbh);
+    
 }
 
 function update_MRU($arr){
@@ -64,7 +67,33 @@ function update_MRU($arr){
 //    Inserting is done by re-using insert function
     insertJobDetails($csv);
     
+    unset($qry);
+    unset($dbh);
 }
 
+function updateEEDetails($csv){
+//    function to update user details
+    
+    $SQL = "UPDATE tHR_Employee SET LastName = :lName, Email = :mail WHERE ID = :eeID";
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
+    $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
+//    error catching and writing in the error log
+    try{
+        $qry->execute();
+    }
+    catch (PDOException $err) {
+        $fh = fopen('/logs/error.log', 'a');
+        $msg = date("d-m-Y H:i:s ", time()) ." Error: UPDATE failed. tHR_Employee. "
+                ."EEID - " .$csv[1] ."; " .$err;
+        fwrite($fh, $msg);
+        fclose($fh);
+    }
+    
+    unset($qry);
+    unset($dbh);
+}
 
 ?>
