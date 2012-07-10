@@ -71,18 +71,15 @@ function insert_NewEE($csv){
 }
 
 function update_EE($arr){
+    
+    checkEEdetails($arr['data']);
 //    here add updating of the records for cost center, mru, job level/jobcode
     $mru = check_MRU($arr);
-    if($mru == TRUE){
-        update_MRU($arr);
-    }
-    
-    
     $cCenter = check_costCenter($arr);
-    
-    if($cCenter == TRUE){
-        update_CostCentr($arr);
-    }
+    if($mru == TRUE || $cCenter == TRUE){
+        update_jobDetails($arr);
+    } 
+     
 }
 
 
@@ -231,6 +228,33 @@ function check_MRU($arr){
     
 //    return the info to calling function
     return $result;
+}
+
+function checkEEdetails($csv){
+//    function to check for employee details like name or email address
+//    it searches for user in DB and checks if DB details are up to date. If 
+//    there's no match in DB, function updating record is called. 
+//    NOTE: records in main EE table are not time delimited, therefore there are 
+//    no record closing/opening operations happening
+    $SQL = "SELECT Count(ID) FROM tHR_Employee WHERE ID = :eeID, LastName = :lName"
+        . ", Email = :mail";
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
+    $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
+    $qry->execute();
+    
+    while($row = $qry->fetch(PDO::FETCH_NUM)){
+        $result = $row[0];
+    }
+    
+    if($result != 1){
+        updateEEDetails($csv);
+    }
+    
+    unset($qry);
+    unset($dbh);
 }
 
 //=============================================================================
