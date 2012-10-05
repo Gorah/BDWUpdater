@@ -55,7 +55,7 @@ function migGetAction($array){
 //  test wheater employee is new hire or already exists in DB. Function will
 //  return TRUE if it's a new hire, FALSE if employee already exists under this ID
 
-    $newEE = test_newHire($array['data'][1]);
+    $newEE = test_newHire($array['data'][3]);
 
     if ($newEE == TRUE){
         insert_NewEE($array);
@@ -85,12 +85,13 @@ function insert_NewEE($csv){
 function update_EE($arr){
     
 //  $action variable holds info which action to perfom during update
-    $action = checkIfTerminated($arr['data'][1], $arr['timeStamp'], $arr['data'][9]);
+    $action = checkIfTerminated($arr['data'][3], $arr['timeStamp'], $arr['data'][10]);
     
     switch($action){
         case 'update':
             checkEEdetails($arr['data']);
             //update action in tHR_JobDetails
+            
             break;
         case 'terminate':
             terminateEE($arr);
@@ -234,106 +235,72 @@ function checkIfTerminated($id, $stampDate, $eeStat){
 }
 
 
-//function testing whether Cost Center for employee is up to date
-//TO BE REWORKED TO CATCH CHANGES IN tHR_JOBDETAILS!!!!
-function check_costCenter($arr){
-    $csv = $arr['data'];
-//    check if record newer than MIG file exists - if yes, return FALSE
-     $SQL = "SELECT Count(EEID) FROM tHR_JobDetails WHERE EEID = :eeID"
-            ." AND StartDate > '" .date("Y-m-d", $arr['timeStamp']) ."'";
-    $dbh = DB_con();
-    $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-    $qry->execute();
-
-    $hits = 0;
-
+function checkJobChange($arr){
+     $csv = $arr['data'];
+     
+     
+     //find if record with same data already exists in DB
+     $SQL = "SELECTCount(ID) FROM tHR_JobDetails WHERE EEID = :id AND EndDate >= :date "
+        . "AND Project = :proj AND CostCenter = :cc AND FTE = :fte AND "
+        . "JobCode = :jCode";
+     
+     $dbh = DB_con();
+     $qry = $dbh->prepare($SQL);
+     $qry->bindParam(':id', $csv[3], PDO::PARAM_INT);
+     $qry->bindParam(':date', $arr['timeStamp'], PDO::PARAM_STR);
+     $qry->bindParam(':proj', $csv[7], PDO::PARAM_STR);
+     $qry->bindParam(':cc', $csv[5], PDO::PARAM_STR);
+     $qry->bindParam(':fte', $csv[11], PDO::PARAM_INT);
+     $qry->bindParam(':jCode', $csv[9], PDO::PARAM_STR);
+     
+     $qry->execute();
+     
      while($row = $qry->fetch(PDO::FETCH_NUM)){
-        $hits = $row[0];
-    }
-    unset($qry);
-
-    if($hits == 0){
-        $SQL = "SELECT Count(EEID) FROM tHR_JobDetails WHERE EEID = :eeID AND"
-            ." CostCenter = :cCentr AND EndDate > '" .date("Y-m-d", $arr['timeStamp']) ."'"
-            ." AND StartDate < '" .date("Y-m-d", $arr['timeStamp']) ."'";
-
+         $hits = $row[0]; 
+     }
+     unset($qry);
+     unset($dbh);
+     
+     //if $hits = 0, it means that there's no such record in DB and update action
+     //is necessary
+     if (0 == $hits) {
+        
+        //finding record ID to delimit 
+        $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :id "
+            . "ORDER BY StartDate Desc"; 
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
-        $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-        $qry->bindParam(':cCentr', $csv[7], PDO::PARAM_STR);
-        $qry->execute();
-
+        $qry->bindParam(':id', $csv[3], PDO::PARAM_INT);
+        $qry-execute();
+        
         while($row = $qry->fetch(PDO::FETCH_NUM)){
-            $hits = $row[0];
+         $id = $row[0]; 
         }
-
-         //    determine boolean response
-        if($hits == 0){
-            $result =TRUE;
-        } else {
-            $result = FALSE;
+        
+        unset($qry);
+        unset($dbh);
+        //preparing dates
+        $startOfNewRec = substr($arr['timeStamp'], 0,-2) . '01';
+        $endOfOldRec = strtotime('-1 day', strtotime($startOfNewRec));
+        $startOfNewRec = date('Y-m-d', strtotime($startOfNewRec));
+        $endOfOldRec = date('Y-m-d', strtotime($endOfOldRec));
+        
+        //get flag if MRU changed
+        $changedDep = checkIfMRUChanged($csv[3], $csv[7]);
+        
+        //run update function
+        updateJobDetails($csv, $id, $endOfOldRec, $startOfNewRec);
+        
+        //if MRU change flag is set to TRUE, remove EE from his old Team
+        //plug EE to a new MRU afterwards
+        if ('TRUE' == $changedDep) {
+            removeFromTeam($csv[3], $endOfOldRec);
+            addToNewMRU($csv[3], $csv[7]);
         }
-
-    } else {
-        $result = FALSE;
-    }
-
-
-//    return the info to calling function
-    return $result;
+        
+     }
 }
 
-//function testing whether MRU for employee is up to date
-//TO BE REWORKED TO CATCH CHANGES IN tHR_JOBDETAILS AND MERGED WITH ABOVE!!!!
-function check_MRU($arr){
-   $csv = $arr['data'];
-   //    check if record newer than MIG file exists - if yes, return FALSE
-     $SQL = "SELECT Count(EEID) FROM tHR_JobDetails WHERE EEID = :eeID"
-            ." AND StartDate > '" .date("Y-m-d", $arr['timeStamp']) ."'";
-    $dbh = DB_con();
-    $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-    $qry->execute();
-
-     while($row = $qry->fetch(PDO::FETCH_NUM)){
-        $hits = $row[0];
-    }
-    unset($qry);
-
-    if($hits == 0){
-        $SQL = "SELECT Count(EEID) FROM tHR_JobDetails WHERE EEID = :eeID AND"
-            ." Project = :MRU AND EndDate > '" .date("Y-m-d", $arr['timeStamp']) ."'"
-            ." AND StartDate < '" .date("Y-m-d", $arr['timeStamp']) ."'";
-
-        $dbh = DB_con();
-        $qry = $dbh->prepare($SQL);
-        $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-        $qry->bindParam(':MRU', $csv[8], PDO::PARAM_STR);
-        $qry->execute();
-
-        $hits = 0;
-
-        while($row = $qry->fetch(PDO::FETCH_NUM)){
-            $hits = $row[0];
-        }
-
-
-         //    determine boolean response
-        if($hits == 0){
-            $result =TRUE;
-        } else {
-            $result = FALSE;
-        }
-
-    } else {
-        $result = FALSE;
-    }
-
-
-//    return the info to calling function
-    return $result;
-}
 
 function checkEEdetails($csv){
 //    function to check for employee details like name or email address
@@ -345,9 +312,9 @@ function checkEEdetails($csv){
         . ", Email = :mail";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
-    $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
-    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
+    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':lName', $csv[3], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[4], PDO::PARAM_STR);
     $qry->execute();
 
     $result = 0;
@@ -362,6 +329,25 @@ function checkEEdetails($csv){
 
     unset($qry);
     unset($dbh);
+}
+
+function checkIfMRUChanged($eeid, $mru){
+    $SQL = "SELECT TOP 1 Project FROM tHR_JobDetails WHERE EEID = :id "
+        . "ORDER BY StartDate DESC";
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(':eeID', $eeid, PDO::PARAM_INT);
+    $qry->execute();
+    
+    while($row = $qry->fetch(PDO::FETCH_NUM)){
+        $result = $row[0];
+    }
+    
+    if($result == $mru){
+        return 'FALSE';
+    } else {
+        return 'TRUE';
+    }
 }
 
 //=============================================================================
