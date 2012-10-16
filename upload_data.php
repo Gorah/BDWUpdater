@@ -24,7 +24,8 @@ if(move_uploaded_file($_FILES['ufile']['tmp_name'], $path)) {
 include "update_DB.php";
 
 $data = array('filePath' => $path,
-              'actionType' => $_POST['utype']);
+              'actionType' => $_POST['utype'],
+               'timeStamp' => $_POST['timeStamp']);
 
 run_update($data);
 

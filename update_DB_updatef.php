@@ -9,7 +9,7 @@ function update_CostCentr($arr){
     $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :eeid ORDER BY EndDate DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->execute();
     
     while($row = $qry->fetch(PDO::FETCH_NUM)){
@@ -45,7 +45,7 @@ function update_MRU($arr){
     $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :eeid ORDER BY EndDate DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->execute();
     
     while($row = $qry->fetch(PDO::FETCH_NUM)){
@@ -77,9 +77,9 @@ function updateEEDetails($csv){
     $SQL = "UPDATE tHR_Employee SET LastName = :lName, Email = :mail WHERE ID = :eeID";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-    $qry->bindParam(':lName', $csv[1], PDO::PARAM_STR);
-    $qry->bindParam(':mail', $csv[4], PDO::PARAM_STR);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
+    $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
 //    error catching and writing in the error log
     try{
         $qry->execute();
@@ -87,7 +87,7 @@ function updateEEDetails($csv){
     catch (PDOException $err) {
         $fh = fopen('/logs/error.log', 'a');
         $msg = date("d-m-Y H:i:s ", time()) ." Error: UPDATE failed. tHR_Employee. "
-                ."EEID - " .$csv[3] ."; " .$err;
+                ."EEID - " .$csv[1] ."; " .$err;
         fwrite($fh, $msg);
         fclose($fh);
     }
@@ -128,7 +128,7 @@ function terminateEE($arr){
      } catch (PDOException $err) {
         $fh = fopen('/logs/error.log', 'a');
         $msg = date("d-m-Y H:i:s ", time()) ." Error: UPDATE failed. tHR_Employee. "
-                ."EEID - " .$csv[3] ."; " .$err;
+                ."EEID - " .$csv[1] ."; " .$err;
         fwrite($fh, $msg);
         fclose($fh);
      }
@@ -150,7 +150,7 @@ function terminateEE($arr){
         catch (PDOException $err) {
             $fh = fopen('/logs/error.log', 'a');
             $msg = date("d-m-Y H:i:s ", time()) ." Error: UPDATE failed. tHR_Employee. "
-                    ."EEID - " .$csv[3] ."; " .$err;
+                    ."EEID - " .$csv[1] ."; " .$err;
             fwrite($fh, $msg);
             fclose($fh);
         }
@@ -159,7 +159,7 @@ function terminateEE($arr){
 //      finding record to delimit in team assigment table (tHR_TeamMembers)  
         $SQLstr = "SELECT TOP(1) ID FROM tHR_TeamMembers WHERE EEID=:eeID ORDER BY EndDate DESC";
         $qry = $dbh->prepare($SQLstr);
-        $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+        $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
         $qry->execute();
         
         $id = 0;
@@ -178,7 +178,7 @@ function terminateEE($arr){
         catch (PDOException $err) {
             $fh = fopen('/logs/error.log', 'a');
             $msg = date("d-m-Y H:i:s ", time()) ." Error: UPDATE failed. tHR_Employee. "
-                    ."EEID - " .$csv[3] ."; " .$err;
+                    ."EEID - " .$csv[1] ."; " .$err;
             fwrite($fh, $msg);
             fclose($fh);
         }
@@ -199,7 +199,7 @@ function updateJobDetails($csv, $id, $end, $start){
     //inserting new record to tHR_JobDetails
     insertNewJob($csv, $start);
     //delimiting tHR_Actions
-    updateAction($csv[3], $end);
+    updateAction($csv[1], $end);
     //inserting new action tHR_Actions
     insertNewAction($csv, $start);
 }
@@ -223,10 +223,10 @@ function insertNewJob($csv, $start){
       //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':mru', $csv[7], PDO::PARAM_STR);
     $qry->bindParam(':workC', $wCtr, PDO::PARAM_STR);
-    $qry->bindParam(':cCentr', $csv[6], PDO::PARAM_STR);
+    $qry->bindParam(':cCentr', $csv[5], PDO::PARAM_STR);
     $qry->bindParam(':job', $csv[9], PDO::PARAM_STR);
     $qry->bindParam(':fte', $csv[11], PDO::PARAM_INT);
     $qry->bindParam(':fPT', $fPT, PDO::PARAM_STR);
@@ -266,7 +266,7 @@ function insertNewAction($csv, $start){
      //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':eStat', $csv[10], PDO::PARAM_STR);
     $qry->execute();
 }

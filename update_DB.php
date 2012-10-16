@@ -55,7 +55,7 @@ function migGetAction($array){
 //  test wheater employee is new hire or already exists in DB. Function will
 //  return TRUE if it's a new hire, FALSE if employee already exists under this ID
 
-    $newEE = test_newHire($array['data'][3]);
+    $newEE = test_newHire($array['data'][1]);
 
     if ($newEE == TRUE){
         insert_NewEE($array);
@@ -85,7 +85,7 @@ function insert_NewEE($csv){
 function update_EE($arr){
     
 //  $action variable holds info which action to perfom during update
-    $action = checkIfTerminated($arr['data'][3], $arr['timeStamp'], $arr['data'][10]);
+    $action = checkIfTerminated($arr['data'][1], $arr['timeStamp'], $arr['data'][10]);
     
     switch($action){
         case 'update':
@@ -246,7 +246,7 @@ function checkJobChange($arr){
      
      $dbh = DB_con();
      $qry = $dbh->prepare($SQL);
-     $qry->bindParam(':id', $csv[3], PDO::PARAM_INT);
+     $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
      $qry->bindParam(':date', $arr['timeStamp'], PDO::PARAM_STR);
      $qry->bindParam(':proj', $csv[7], PDO::PARAM_STR);
      $qry->bindParam(':cc', $csv[5], PDO::PARAM_STR);
@@ -270,7 +270,7 @@ function checkJobChange($arr){
             . "ORDER BY StartDate Desc"; 
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
-        $qry->bindParam(':id', $csv[3], PDO::PARAM_INT);
+        $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
         $qry-execute();
         
         while($row = $qry->fetch(PDO::FETCH_NUM)){
@@ -286,7 +286,7 @@ function checkJobChange($arr){
         $endOfOldRec = date('Y-m-d', strtotime($endOfOldRec));
         
         //get flag if MRU changed
-        $changedDep = checkIfMRUChanged($csv[3], $csv[7]);
+        $changedDep = checkIfMRUChanged($csv[1], $csv[7]);
         
         //run update function
         updateJobDetails($csv, $id, $endOfOldRec, $startOfNewRec);
@@ -294,8 +294,8 @@ function checkJobChange($arr){
         //if MRU change flag is set to TRUE, remove EE from his old Team
         //plug EE to a new MRU afterwards
         if ('TRUE' == $changedDep) {
-            removeFromTeam($csv[3], $endOfOldRec);
-            addToNewMRU($csv[3], $csv[7]);
+            removeFromTeam($csv[1], $endOfOldRec);
+            addToNewMRU($csv[1], $csv[7]);
         }
         
      }
@@ -312,9 +312,9 @@ function checkEEdetails($csv){
         . ", Email = :mail";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-    $qry->bindParam(':lName', $csv[3], PDO::PARAM_STR);
-    $qry->bindParam(':mail', $csv[4], PDO::PARAM_STR);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
+    $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
     $qry->execute();
 
     $result = 0;

@@ -14,9 +14,9 @@ function insertToEmployee($arr){
     //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
-    $qry->bindParam(':name', $csv[2], PDO::PARAM_STR);
-    $qry->bindParam(':surN', $csv[1], PDO::PARAM_STR);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
+    $qry->bindParam(':name', $csv[3], PDO::PARAM_STR);
+    $qry->bindParam(':surN', $csv[2], PDO::PARAM_STR);
     $qry->bindParam(':email', $csv[4], PDO::PARAM_STR);
     $qry->execute();
     
@@ -28,7 +28,7 @@ function insertActions($arr, $actionT = 'New Hire'){
     
     $csv = $arr['data'];
     //    prepare insert into Actions table
-    $SQL= "INSERT INTO tHR_Actions (EEID, ActionType, ReasonCode, StartDate, "
+    $SQL= "INSERT INTO tHR_Actions (EEID, ActionType, ReasonCode, StarDate, "
         ."EndDate, ModifiedDate, ModifiedBy, EmploymentStatus) VALUES (:eeID, "
         .":aT, :aR, '" .date('Y-m-d', strtotime($csv[12])) ."', "
         ."'9999-12-31', '" .date("Y-m-d H:i:s", time()) ."', 'Mass Upload', :eStat);";
@@ -36,7 +36,7 @@ function insertActions($arr, $actionT = 'New Hire'){
      //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':aT', $actionT, PDO::PARAM_STR);
     $qry->bindParam(':aR', $actionT, PDO::PARAM_STR);
     $qry->bindParam(':eStat', $csv[10], PDO::PARAM_STR);
@@ -54,7 +54,7 @@ function insertDate($arr){
      //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->execute();
     
     unset($qry);
@@ -70,7 +70,7 @@ function insertOpsMru($arr){
      //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[3], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':mru', $csv[7], PDO::PARAM_STR);
     $qry->execute();
     
@@ -98,7 +98,7 @@ function insertJobDetails($arr){
       //    run the query 
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $csv[31], PDO::PARAM_INT);
+    $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':mru', $csv[7], PDO::PARAM_STR);
     $qry->bindParam(':workC', $wCtr, PDO::PARAM_STR);
     $qry->bindParam(':cCentr', $csv[5], PDO::PARAM_STR);
