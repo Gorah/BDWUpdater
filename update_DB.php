@@ -82,6 +82,8 @@ function update_EE($arr){
 //  $action variable holds info which action to perfom during update
     $action = checkIfTerminated($arr['data'][1], $arr['timeStamp'], $arr['data'][10]);
     
+    echo($action . PHP_EOL);
+    
     switch($action){
         case 'update':
             //update action in tHR_Employee
@@ -98,6 +100,7 @@ function update_EE($arr){
             insertActions($arr, 'Rehire');
             //inserting employee to tHR_OpsMRU so he appears in his MRU basket
             insertOpsMru($arr);
+            insertJobDetails($arr['data']);
             break;
         case 'end':
             break;

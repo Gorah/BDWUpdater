@@ -27,6 +27,11 @@ function insertToEmployee($arr){
 function insertActions($arr, $actionT = 'New Hire'){
     
     $csv = $arr['data'];
+    
+    if ($actionT == 'Rehire'){
+        closeActionRecord($csv);
+    }
+    
     //    prepare insert into Actions table
     $SQL= "INSERT INTO tHR_Actions (EEID, ActionType, ReasonCode, StarDate, "
         ."EndDate, ModifiedDate, ModifiedBy, EmploymentStatus) VALUES (:eeID, "
@@ -111,6 +116,34 @@ function insertJobDetails($arr){
     unset($dbh);
 }
 
+//delimits record in tHR_Actions
+function closeActionRecord($csv){
+    
+    $SQL = "SELECT TOP 1 ID FROM tHR_Actions WHERE EEID =:id ORDER BY EndDate DESC";
+    $dbh = DB_con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
+    $qry->execute();
+    
+    while($row = $qry->fetch(PDO::FETCH_NUM)){
+        $targetID = $row[0];
+    }
+    
+    echo($targetID);
+    
+    unset($qry);
+    unset($dbh);
+    
+    $endDate = strtotime('-1 day', strtotime($csv[12]));
+    $endDate = date('Y-m-d', $endDate);
+//    delimiting newest record for the employee
+    $SQL = "UPDATE tHR_Actions SET EndDate ='" .$endDate 
+            ."' WHERE ID = :tID";
+    $dbh = DB_Con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(':tID', $targetID, PDO::PARAM_INT);
+    $qry->execute();
+}
 //***********************************************
 //** End of Insert SQL functions for New Employee section
 //***********************************************
