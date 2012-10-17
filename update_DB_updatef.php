@@ -99,8 +99,7 @@ function updateEEDetails($csv){
 
 function terminateEE($arr){
     $csv = $arr['data'];
-    
-    $SQL = "SELECT TOP(1) ID FROM tHR_Actions WHERE EEID=:eeID ORDER BY EndDate DESC";
+    $SQL = "SELECT TOP(1) ID FROM tHR_Actions WHERE EEID=:id ORDER BY EndDate DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindPAram(':id', $csv[1], PDO::PARAM_STR);
@@ -115,11 +114,12 @@ function terminateEE($arr){
     $startOfTermination = substr($arr['timeStamp'], 0,-2) . '01';
     $endOfEmployment = strtotime('-1 day', strtotime( $startOfTermination));
     $startOfTermination = date('Y-m-d', strtotime($startOfTermination));
-    $endOfEmployment = date('Y-m-d', strtotime($endOfEmployment));
+    $endOfEmployment = date('Y-m-d', $endOfEmployment);
 
         
      //delimiting current record in tHR_Actions
-     $qry=$dbh->prepare("UPDATE tHR_Actions SET EndDate=:eDate WHERE ID=:eeID");
+     $qry=$dbh->prepare("UPDATE tHR_Actions SET EndDate=:eDate, EmploymentStatus ="
+             . "'Terminated' WHERE ID=:eeID");
      $qry->bindParam(':eDate', $endOfEmployment, PDO::PARAM_STR);
      $qry->bindParam(':eeID', $id, PDO::PARAM_INT);
      
