@@ -59,13 +59,8 @@ function migGetAction($array){
 
     if ($newEE == TRUE){
         insert_NewEE($array);
-   } else {
-//     $skip variable calls function testing if terminated employee from MIG is already
-//       terminated in BDW. If yes, employee is skipped.
-      // $skip = testForStatus($array);
-     //  if($skip === "FALSE"){
-//          update_EE($array);
-     //  }
+    } else {
+        update_EE($array);
     }
 
 }
@@ -89,15 +84,19 @@ function update_EE($arr){
     
     switch($action){
         case 'update':
+            //update action in tHR_Employee
             checkEEdetails($arr['data']);
             //update action in tHR_JobDetails
-            
+            checkJobChange($arr);
             break;
         case 'terminate':
+            //terminating employee
             terminateEE($arr);
             break;
         case 'rehire':
+            //rehire action
             insertActions($arr, 'Rehire');
+            //inserting employee to tHR_OpsMRU so he appears in his MRU basket
             insertOpsMru($arr);
             break;
         case 'end':
@@ -288,7 +287,7 @@ function checkJobChange($arr){
         //get flag if MRU changed
         $changedDep = checkIfMRUChanged($csv[1], $csv[7]);
         
-        //run update function
+        //run DB update function
         updateJobDetails($csv, $id, $endOfOldRec, $startOfNewRec);
         
         //if MRU change flag is set to TRUE, remove EE from his old Team
@@ -322,7 +321,7 @@ function checkEEdetails($csv){
     while($row = $qry->fetch(PDO::FETCH_NUM)){
         $result = $row[0];
     }
-
+    //if result is different than 1, run update function to correct entry in DB
     if($result != 1){
         updateEEDetails($csv);
     }
@@ -331,6 +330,10 @@ function checkEEdetails($csv){
     unset($dbh);
 }
 
+//Function which purpose is to determine if given employee has the same MRU in 
+//BDW records compared to uploaded file. If the MRUs are different, it indicates 
+//that employee has moved between departments and it has to be flagged for 
+//reassigment to another MRU basket in tHR_OpsMRU
 function checkIfMRUChanged($eeid, $mru){
     $SQL = "SELECT TOP 1 Project FROM tHR_JobDetails WHERE EEID = :id "
         . "ORDER BY StartDate DESC";
