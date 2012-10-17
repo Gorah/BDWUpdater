@@ -78,12 +78,10 @@ function insert_NewEE($csv){
 }
 
 function update_EE($arr){
-    
+
 //  $action variable holds info which action to perfom during update
     $action = checkIfTerminated($arr['data'][1], $arr['timeStamp'], $arr['data'][10]);
-    
-    echo($action . PHP_EOL);
-    
+
     switch($action){
         case 'update':
             //update action in tHR_Employee
@@ -105,8 +103,8 @@ function update_EE($arr){
         case 'end':
             break;
     }
- }  
-    
+ }
+
 
 //************************************
 //supporting functions - MIG
@@ -164,7 +162,7 @@ function contract_Type($val){
 }
 
 //a function to test what sort of update function to commit on the employee
-//it's comparing the state of EE in BDW and MIG. 
+//it's comparing the state of EE in BDW and MIG.
 //If Employee is:
 //  * Active in both -> regular update function chosen
 //  * Active in BDW, not in MIG -> termination action performed
@@ -174,7 +172,7 @@ function contract_Type($val){
 //employment statuses between DB's.
 //Function returns string with action type to take.
 function checkIfTerminated($id, $stampDate, $eeStat){
-    
+
     //fetching newest employment status (the one with StartDate same or newer than
     //upload file's stamp date
     $SQL = "SELECT TOP 1 EmploymentStatus FROM tHR_Actions WHERE EEID = :id AND "
@@ -184,15 +182,15 @@ function checkIfTerminated($id, $stampDate, $eeStat){
     $qry->bindParam(':id', $id, PDO::PARAM_INT);
     $qry->bindParam(':stamp', $stampDate, PDO::PARAM_STR);
     $qry->execute();
-    
+
     $status = '';
     while($row=$qry->fetch(PDO::FETCH_NUM)){
         $status = $row[0];
     }
-    
+
     unset($qry);
     unset($dbh);
-    
+
     //if there were no results (ie: latest record is older than stamp date of the
     //upload file) new fetch is prepared to get nmost up-to-date record
     if ($status =='' || $status == NULL){
@@ -208,9 +206,9 @@ function checkIfTerminated($id, $stampDate, $eeStat){
             $status = $row[0];
         }
     }
-    
+
 //  basing on the employee status from BDW we're making compare with MIG status
-//  and using mentioned above criteria we're choosing action to perform  
+//  and using mentioned above criteria we're choosing action to perform
     switch($status){
         case 'Active':
             if  ($eeStat == 'Active'){
@@ -227,19 +225,19 @@ function checkIfTerminated($id, $stampDate, $eeStat){
             }
             break;
     }
-    
+
 }
 
 
 function checkJobChange($arr){
      $csv = $arr['data'];
-     
-     
+
+
      //find if record with same data already exists in DB
      $SQL = "SELECTCount(ID) FROM tHR_JobDetails WHERE EEID = :id AND EndDate >= :date "
         . "AND Project = :proj AND CostCenter = :cc AND FTE = :fte AND "
         . "JobCode = :jCode";
-     
+
      $dbh = DB_con();
      $qry = $dbh->prepare($SQL);
      $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
@@ -248,32 +246,32 @@ function checkJobChange($arr){
      $qry->bindParam(':cc', $csv[5], PDO::PARAM_STR);
      $qry->bindParam(':fte', $csv[11], PDO::PARAM_INT);
      $qry->bindParam(':jCode', $csv[9], PDO::PARAM_STR);
-     
+
      $qry->execute();
-     
+
      $hits = 0;
      while($row = $qry->fetch(PDO::FETCH_NUM)){
-         $hits = $row[0]; 
+         $hits = $row[0];
      }
      unset($qry);
      unset($dbh);
-     
+
      //if $hits = 0, it means that there's no such record in DB and update action
      //is necessary
      if (0 == $hits) {
-        
-        //finding record ID to delimit 
+
+        //finding record ID to delimit
         $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :id "
-            . "ORDER BY StartDate Desc"; 
+            . "ORDER BY StartDate Desc";
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
         $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
         $qry->execute();
-        
+
         while($row = $qry->fetch(PDO::FETCH_NUM)){
-         $id = $row[0]; 
+         $id = $row[0];
         }
-        
+
         unset($qry);
         unset($dbh);
         //preparing dates
@@ -281,20 +279,20 @@ function checkJobChange($arr){
         $endOfOldRec = strtotime('-1 day', strtotime($startOfNewRec));
         $startOfNewRec = date('Y-m-d', strtotime($startOfNewRec));
         $endOfOldRec = date('Y-m-d', strtotime($endOfOldRec));
-        
+
         //get flag if MRU changed
         $changedDep = checkIfMRUChanged($csv[1], $csv[7]);
-        
+
         //run DB update function
         updateJobDetails($csv, $id, $endOfOldRec, $startOfNewRec);
-        
+
         //if MRU change flag is set to TRUE, remove EE from his old Team
         //plug EE to a new MRU afterwards
         if ('TRUE' == $changedDep) {
             removeFromTeam($csv[1], $endOfOldRec);
             addToNewMRU($csv[1], $csv[7]);
         }
-        
+
      }
 }
 
@@ -328,9 +326,9 @@ function checkEEdetails($csv){
     unset($dbh);
 }
 
-//Function which purpose is to determine if given employee has the same MRU in 
-//BDW records compared to uploaded file. If the MRUs are different, it indicates 
-//that employee has moved between departments and it has to be flagged for 
+//Function which purpose is to determine if given employee has the same MRU in
+//BDW records compared to uploaded file. If the MRUs are different, it indicates
+//that employee has moved between departments and it has to be flagged for
 //reassigment to another MRU basket in tHR_OpsMRU
 function checkIfMRUChanged($eeid, $mru){
     $SQL = "SELECT TOP 1 Project FROM tHR_JobDetails WHERE EEID = :id "
@@ -339,12 +337,12 @@ function checkIfMRUChanged($eeid, $mru){
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':id', $eeid, PDO::PARAM_INT);
     $qry->execute();
-    
+
     $result = 0;
     while($row = $qry->fetch(PDO::FETCH_NUM)){
         $result = $row[0];
     }
-    
+
     if($result == $mru){
         return 'FALSE';
     } else {
