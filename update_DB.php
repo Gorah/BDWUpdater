@@ -102,17 +102,8 @@ function update_EE($arr){
         case 'end':
             break;
     }
+ }  
     
-    checkEEdetails($arr['data']);
-//    here add updating of the records for cost center, mru, job level/jobcode
-    $mru = check_MRU($arr);
-    $cCenter = check_costCenter($arr);
-    if($mru == TRUE || $cCenter == TRUE){
-        update_jobDetails($arr);
-    }
-
-}
-
 
 //************************************
 //supporting functions - MIG
@@ -196,10 +187,13 @@ function checkIfTerminated($id, $stampDate, $eeStat){
         $status = $row[0];
     }
     
+    unset($qry);
+    unset($dbh);
+    
     //if there were no results (ie: latest record is older than stamp date of the
     //upload file) new fetch is prepared to get nmost up-to-date record
     if ($status =='' || $status == NULL){
-         $SQL = "SELECT TOP 1 EmploymentStatus FROM tHR_Actions WHERE EEID = :id"
+         $SQL = "SELECT TOP 1 EmploymentStatus FROM tHR_Actions WHERE EEID = :id "
         . "ORDER BY StarDate DESC";
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
@@ -254,6 +248,7 @@ function checkJobChange($arr){
      
      $qry->execute();
      
+     $hits = 0;
      while($row = $qry->fetch(PDO::FETCH_NUM)){
          $hits = $row[0]; 
      }
@@ -270,7 +265,7 @@ function checkJobChange($arr){
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
         $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
-        $qry-execute();
+        $qry->execute();
         
         while($row = $qry->fetch(PDO::FETCH_NUM)){
          $id = $row[0]; 
@@ -313,7 +308,7 @@ function checkEEdetails($csv){
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
-    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[4], PDO::PARAM_STR);
     $qry->execute();
 
     $result = 0;
@@ -339,9 +334,10 @@ function checkIfMRUChanged($eeid, $mru){
         . "ORDER BY StartDate DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $eeid, PDO::PARAM_INT);
+    $qry->bindParam(':id', $eeid, PDO::PARAM_INT);
     $qry->execute();
     
+    $result = 0;
     while($row = $qry->fetch(PDO::FETCH_NUM)){
         $result = $row[0];
     }

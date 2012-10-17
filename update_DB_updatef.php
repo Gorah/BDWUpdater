@@ -79,7 +79,7 @@ function updateEEDetails($csv){
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':lName', $csv[2], PDO::PARAM_STR);
-    $qry->bindParam(':mail', $csv[3], PDO::PARAM_STR);
+    $qry->bindParam(':mail', $csv[4], PDO::PARAM_STR);
 //    error catching and writing in the error log
     try{
         $qry->execute();
@@ -243,7 +243,7 @@ function updateAction($eeid, $end){
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':id', $eeid, PDO::PARAM_INT);
-    $qry-execute();
+    $qry->execute();
         
     while($row = $qry->fetch(PDO::FETCH_NUM)){
         $id = $row[0]; 
