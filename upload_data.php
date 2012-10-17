@@ -14,8 +14,7 @@ $path = $uploaddir.$SafeFile;
 
 //copying file to upload location
 if(move_uploaded_file($_FILES['ufile']['tmp_name'], $path)) {
-    echo "The file ".  basename( $_FILES['uploadedfile']['name']). 
-    " has been uploaded";
+    echo "The file ".  $SafeFile. " has been uploaded";
 } else{
     echo "There was an error uploading the file, please try again!";
 }

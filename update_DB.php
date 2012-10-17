@@ -18,9 +18,9 @@ function run_update($inputData){
                    'timeStamp' => $inputData['timeStamp']);
     getArray($data);
 
-     $fh = fopen('/logs/update.log', 'a');
+     $fh = fopen('./logs/update.log', 'a');
      $msg = date("d-m-Y H:i:s ", time()) ." Update Complete. "
-           ."Update type performed: " .$inputData['actionType'];
+           ."Update type performed: " .$inputData['actionType'] . PHP_EOL;
      fwrite($fh, $msg);
      fclose($fh);
 
