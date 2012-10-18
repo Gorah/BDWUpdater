@@ -282,7 +282,8 @@ function removeFromTeam($eeid, $end){
 function addToNewMRU($eeID, $MRU){
       //   insert EE ID into OpsMRU table to identify which MRU employee belongs to
 //   before he's added to his work group
-    $SQL = "INSERT INTO tHR_OpsMRU (ID, MRU) VALUES (:eeID, :mru);";
+    
+    $SQL = "UPDATE tHR_OpsMRU SET MRU=:mru WHERE ID=:eeID;";
 
      //    run the query
     $dbh = DB_con();
