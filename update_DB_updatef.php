@@ -228,7 +228,7 @@ function insertNewJob($csv, $start){
 function updateAction($eeid, $end){
      //finding record ID to delimit
     $SQL = "SELECT TOP 1 ID FROM tHR_Actions WHERE EEID = :id "
-        . "ORDER BY StartDate Desc";
+        . "ORDER BY StarDate Desc";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':id', $eeid, PDO::PARAM_INT);
@@ -237,19 +237,22 @@ function updateAction($eeid, $end){
     while($row = $qry->fetch(PDO::FETCH_NUM)){
         $id = $row[0];
     }
+
+    unset($qry);
+    unset($dbh);
     //delimiting old record
-    $SQL = "UPDATE tHR_JobDetails SET EndDate = :eDate WHERE ID = :id";
+    $SQL = "UPDATE tHR_Actions SET EndDate = :eDate WHERE ID = :id";
     $dbh = DB_Con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':eDate', $end, PDO::PARAM_STR);
-    $qry->bindParam(':id', $id, PDO::PARAM_STR);
+    $qry->bindParam(':id', $id, PDO::PARAM_INT);
     $qry->execute();
 }
 
 function insertNewAction($csv, $start){
-     $SQL= "INSERT INTO tHR_Actions (EEID, ActionType, ReasonCode, StartDate, "
+     $SQL= "INSERT INTO tHR_Actions (EEID, ActionType, ReasonCode, StarDate, "
         ."EndDate, ModifiedDate, ModifiedBy, EmploymentStatus) VALUES (:eeID, "
-        ."'Job Change', 'Job Change', '" .date('Y-m-d', strtotime($start)) ."', "
+        ."'Job Change', 'Job Change', '" .$start ."', "
         ."'9999-12-31', '" .date("Y-m-d H:i:s", time()) ."', 'Mass Upload', :eStat);";
 
      //    run the query
@@ -282,14 +285,13 @@ function removeFromTeam($eeid, $end){
 function addToNewMRU($eeID, $MRU){
       //   insert EE ID into OpsMRU table to identify which MRU employee belongs to
 //   before he's added to his work group
-    
-    $SQL = "UPDATE tHR_OpsMRU SET MRU=:mru WHERE ID=:eeID;";
+     $SQL = "UPDATE tHR_OpsMRU SET MRU=:mru WHERE ID=:eeID;";
 
      //    run the query
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':eeID', $eeID, PDO::PARAM_INT);
     $qry->bindParam(':mru', $MRU, PDO::PARAM_STR);
+    $qry->bindParam(':eeID', $eeID, PDO::PARAM_INT);
     $qry->execute();
 }
 
