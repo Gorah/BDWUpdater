@@ -234,7 +234,7 @@ function checkJobChange($arr){
 
 
      //find if record with same data already exists in DB
-     $SQL = "SELECTCount(ID) FROM tHR_JobDetails WHERE EEID = :id AND EndDate >= :date "
+     $SQL = "SELECT Count(ID) FROM tHR_JobDetails WHERE EEID = :id AND EndDate >= :date "
         . "AND Project = :proj AND CostCenter = :cc AND FTE = :fte AND "
         . "JobCode = :jCode";
 
@@ -255,7 +255,7 @@ function checkJobChange($arr){
      }
      unset($qry);
      unset($dbh);
-
+     
      //if $hits = 0, it means that there's no such record in DB and update action
      //is necessary
      if (0 == $hits) {
@@ -278,7 +278,7 @@ function checkJobChange($arr){
         $startOfNewRec = substr($arr['timeStamp'], 0,-2) . '01';
         $endOfOldRec = strtotime('-1 day', strtotime($startOfNewRec));
         $startOfNewRec = date('Y-m-d', strtotime($startOfNewRec));
-        $endOfOldRec = date('Y-m-d', strtotime($endOfOldRec));
+        $endOfOldRec = date('Y-m-d', $endOfOldRec);
 
         //get flag if MRU changed
         $changedDep = checkIfMRUChanged($csv[1], $csv[7]);
