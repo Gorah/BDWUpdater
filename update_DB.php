@@ -235,8 +235,7 @@ function checkJobChange($arr){
 
      //find if record with same data already exists in DB
      $SQL = "SELECT Count(ID) FROM tHR_JobDetails WHERE EEID = :id AND EndDate >= :date "
-        . "AND Project = :proj AND CostCenter = :cc AND FTE = :fte AND "
-        . "JobCode = :jCode";
+        . "AND Project = :proj AND CostCenter = :cc AND FTE = :fte";
 
      $dbh = DB_con();
      $qry = $dbh->prepare($SQL);
@@ -245,7 +244,6 @@ function checkJobChange($arr){
      $qry->bindParam(':proj', $csv[7], PDO::PARAM_STR);
      $qry->bindParam(':cc', $csv[5], PDO::PARAM_STR);
      $qry->bindParam(':fte', $csv[11], PDO::PARAM_INT);
-     $qry->bindParam(':jCode', $csv[9], PDO::PARAM_STR);
 
      $qry->execute();
 
