@@ -6,7 +6,8 @@ function update_CostCentr($arr, $eDate, $onlyDel = FALSE){
 //  get end date by taking report time stamp and substracting one day from it
     $endDate = date("Y-m-d", strtotime('-1 day', strtotime($arr['timeStamp'])));
 //    finding ID of the row to delimit
-    $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :eeid ORDER BY EndDate DESC";
+    $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :eeid ORDER BY "
+            . "EndDate DESC, ID DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':eeid', $csv[1], PDO::PARAM_INT);
@@ -51,7 +52,8 @@ function update_MRU($arr){
     $endDate = date("Y-m-d", strtotime('-1 day', strtotime($arr[timeStamp])));
 
 //    finding ID of the row to delimit
-    $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :eeid ORDER BY EndDate DESC";
+    $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :eeid ORDER BY "
+            . "EndDate DESC, ID DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
@@ -108,7 +110,7 @@ function updateEEDetails($csv){
 
 function terminateEE($arr){
     $csv = $arr['data'];
-    $SQL = "SELECT TOP(1) ID FROM tHR_Actions WHERE EEID=:id ORDER BY EndDate DESC";
+    $SQL = "SELECT TOP(1) ID FROM tHR_Actions WHERE EEID=:id ORDER BY EndDate DESC, ID DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindPAram(':id', $csv[1], PDO::PARAM_STR);
@@ -228,7 +230,7 @@ function insertNewJob($csv, $start){
 function updateAction($eeid, $end){
      //finding record ID to delimit
     $SQL = "SELECT TOP 1 ID FROM tHR_Actions WHERE EEID = :id "
-        . "ORDER BY StarDate Desc";
+        . "ORDER BY StarDate Desc, ID DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':id', $eeid, PDO::PARAM_INT);
@@ -265,7 +267,8 @@ function insertNewAction($csv, $start){
 
 function removeFromTeam($eeid, $end){
     //  finding record to delimit in team assigment table (tHR_TeamMembers)
-        $SQLstr = "SELECT TOP(1) ID FROM tHR_TeamMembers WHERE EEID=:eeID ORDER BY EndDate DESC";
+        $SQLstr = "SELECT TOP(1) ID FROM tHR_TeamMembers WHERE EEID=:eeID ORDER BY "
+            . "EndDate DESC, ID DESC";
         $dbh = DB_Con();
         $qry = $dbh->prepare($SQLstr);
         $qry->bindParam(':eeID', $eeid, PDO::PARAM_INT);

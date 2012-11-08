@@ -176,7 +176,7 @@ function checkIfTerminated($id, $stampDate, $eeStat){
     //fetching newest employment status (the one with StartDate same or newer than
     //upload file's stamp date
     $SQL = "SELECT TOP 1 EmploymentStatus FROM tHR_Actions WHERE EEID = :id AND "
-        . "StarDate >= :stamp ORDER BY StarDate DESC";
+        . "StarDate >= :stamp ORDER BY StarDate DESC, ID DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':id', $id, PDO::PARAM_INT);
@@ -195,7 +195,7 @@ function checkIfTerminated($id, $stampDate, $eeStat){
     //upload file) new fetch is prepared to get nmost up-to-date record
     if ($status =='' || $status == NULL){
          $SQL = "SELECT TOP 1 EmploymentStatus FROM tHR_Actions WHERE EEID = :id "
-        . "ORDER BY StarDate DESC";
+        . "ORDER BY StarDate DESC, ID DESC";
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
         $qry->bindParam(':id', $id, PDO::PARAM_INT);
@@ -260,7 +260,7 @@ function checkJobChange($arr){
 
         //finding record ID to delimit
         $SQL = "SELECT TOP 1 ID FROM tHR_JobDetails WHERE EEID = :id "
-            . "ORDER BY StartDate Desc";
+            . "ORDER BY StartDate Desc, ID DESC";
         $dbh = DB_con();
         $qry = $dbh->prepare($SQL);
         $qry->bindParam(':id', $csv[1], PDO::PARAM_INT);
@@ -330,7 +330,7 @@ function checkEEdetails($csv){
 //reassigment to another MRU basket in tHR_OpsMRU
 function checkIfMRUChanged($eeid, $mru){
     $SQL = "SELECT TOP 1 Project FROM tHR_JobDetails WHERE EEID = :id "
-        . "ORDER BY StartDate DESC";
+        . "ORDER BY StartDate DESC, ID DESC";
     $dbh = DB_con();
     $qry = $dbh->prepare($SQL);
     $qry->bindParam(':id', $eeid, PDO::PARAM_INT);
