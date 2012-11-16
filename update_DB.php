@@ -287,6 +287,7 @@ function checkJobChange($arr){
         //if MRU change flag is set to TRUE, remove EE from his old Team
         //plug EE to a new MRU afterwards
         if ('TRUE' == $changedDep) {
+            echo($endOfOldRec);
             removeFromTeam($csv[1], $endOfOldRec);
             addToNewMRU($csv[1], $csv[7]);
         }

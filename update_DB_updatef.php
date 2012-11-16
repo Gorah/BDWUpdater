@@ -273,29 +273,58 @@ function removeFromTeam($eeid, $end){
         $qry = $dbh->prepare($SQLstr);
         $qry->bindParam(':eeID', $eeid, PDO::PARAM_INT);
         $qry->execute();
-
+        $id = 0;
         while ($row = $qry->fetch(PDO::FETCH_NUM)) {
             $id=$row[0];
         }
         unset($qry);
-
+        unset($dbh);
+        
         //delimiting current record in tHR_TeamMembers
-        $qry=$dbh->prepare("UPDATE tHR_TeamMembers SET EndDate=:eDate WHERE ID=:ID");
+        $SQL = "UPDATE tHR_TeamMembers SET EndDate=:eDate WHERE ID=:ID";
+        $dbh = DB_Con();
+        $qry = $dbh->prepare($SQL);
         $qry->bindParam(':eDate', $end, PDO::PARAM_STR);
         $qry->bindParam(':ID', $id, PDO::PARAM_INT);
+        $qry->execute();
 }
 
 function addToNewMRU($eeID, $MRU){
       //   insert EE ID into OpsMRU table to identify which MRU employee belongs to
 //   before he's added to his work group
-     $SQL = "UPDATE tHR_OpsMRU SET MRU=:mru WHERE ID=:eeID;";
-
-     //    run the query
-    $dbh = DB_con();
+    
+    $SQL = "SELECT COUNT(ID) FROM tHR_OpsMRU WHERE ID = :id";
+    $dbh = DB_Con();
     $qry = $dbh->prepare($SQL);
-    $qry->bindParam(':mru', $MRU, PDO::PARAM_STR);
-    $qry->bindParam(':eeID', $eeID, PDO::PARAM_INT);
+    $qry->bindParam(':id', $eeID, PDO::PARAM_INT);
     $qry->execute();
+    
+    $count = 0;
+    while($row = $qry->fetch(PDO::FETCH_NUM)){
+        $count = $row[0];
+    }
+    
+    unset($dbh);
+    unset($qry);
+    
+    if ($count == 0){
+        $SQL = "INSERT INTO tHR_OpsMRU VALUES (:eeID, :mru);";
+        $dbh = DB_con();
+        $qry = $dbh->prepare($SQL);
+        $qry->bindParam(':mru', $MRU, PDO::PARAM_STR);
+        $qry->bindParam(':eeID', $eeID, PDO::PARAM_INT);
+        $qry->execute();
+        
+    } else {
+    
+        $SQL = "UPDATE tHR_OpsMRU SET MRU=:mru WHERE ID=:eeID;";
+        //    run the query
+        $dbh = DB_con();
+        $qry = $dbh->prepare($SQL);
+        $qry->bindParam(':mru', $MRU, PDO::PARAM_STR);
+        $qry->bindParam(':eeID', $eeID, PDO::PARAM_INT);
+        $qry->execute();
+    }    
 }
 
 //function removes EE from MRU in tHR_OpsMRU
