@@ -100,6 +100,9 @@ function update_EE($arr){
             insertOpsMru($arr);
             insertJobDetails($arr['data']);
             break;
+        case 'LOA':
+            insertActions($arr, 'LOA');
+            break;
         case 'end':
             break;
     }
@@ -213,6 +216,8 @@ function checkIfTerminated($id, $stampDate, $eeStat){
         case 'Active':
             if  ($eeStat == 'Active'){
                 return 'update';
+            } elseif ($eeStat == 'Leave of Absence' || $eeStat == 'Leave With Pay') {
+                return 'LOA';
             } else {
                 return 'terminate';
             }
@@ -287,7 +292,6 @@ function checkJobChange($arr){
         //if MRU change flag is set to TRUE, remove EE from his old Team
         //plug EE to a new MRU afterwards
         if ('TRUE' == $changedDep) {
-            echo($endOfOldRec);
             removeFromTeam($csv[1], $endOfOldRec);
             addToNewMRU($csv[1], $csv[7]);
         }

@@ -28,7 +28,7 @@ function insertActions($arr, $actionT = 'New Hire'){
     
     $csv = $arr['data'];
     
-    if ($actionT == 'Rehire'){
+    if ($actionT == 'Rehire' || $actionT == 'LOA'){
         closeActionRecord($csv);
     }
     
@@ -90,7 +90,6 @@ function insertJobDetails($arr){
 //    translate type of cotract from MIG ->BDW
      $wCtr = contract_Type($csv[0]);
      
-//   !!!!!!!!!!  add job level to DB, gui and to this query.!!!!!!!!!
      
 //     prepare insert query for Job Datails table. NOTE: cost center format of 
 //     PLXXXXX... is used. To change it to CDXXXXX... format change $csv[6] to $csv[6]
