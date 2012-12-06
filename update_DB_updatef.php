@@ -19,7 +19,7 @@ function update_CostCentr($arr, $eDate, $onlyDel = FALSE){
 
     unset($qry);
 
-    //if fag is set to TRUE, use provided date instead of cacuated one
+    //if flag is set to TRUE, use provided date instead of cacuated one
     if(TRUE == $onlyDel){
         $endDate = $eDate;
     }
@@ -167,7 +167,7 @@ function terminateEE($arr){
         unset($qry);
 
 //      finding record to delimit in team assigment table (tHR_TeamMembers)
-        removeFromTeam($csv[1], $endOfEmployment);
+       removeFromTeam($csv[1], $endOfEmployment);
 
        //finding and delimiting record in tHR_JobDetails
        update_CostCentr($arr, $endOfEmployment, TRUE);
@@ -346,5 +346,60 @@ function addDateSpecs($id, $dType, $date){
     $qry->bindParam(':dtype', $dType, PDO::PARAM_STR);
     $qry->bindParam(':date', $date, PDO::PARAM_STR);
     $qry->execute();
+}
+
+//Goes through every employee in BDW and compares it with MIG contents
+function findTerminations($timeStamp){
+    
+    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //!!!! modify query to omit already termkinated ee's!!!!
+    //!!!!!!!!!!!!!!!!!!!!1
+    
+    $SQL = "SELECT ID FROM vw_HR_ActiveEEList";
+    
+    $dbh = DB_Con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+    
+    //calls compare function for every ee found
+    while($row = $qry->fetch(PDO::FETCH_NUM)){
+        compareToMIG($row[0], $timeStamp);
+    }
+    
+    unset($qry);
+    unset($dbh);
+    
+    //cear contents of the table once function is done 
+    $SQL = "DELETE FROM tHR_InMIG";
+    $dbh = DB_Con();
+    $qry = $dbh->prepare($SQL);
+    $qry->execute();
+}
+
+//checks if there's ee in MIG table. If not, calls terminate function
+function compareToMIG($id, $timeStamp){
+    $SQL = "SELECT Count(ID) FROM tHR_InMIG WHERE ID = :id";
+    
+    $dbh = DB_Con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(':id', $id, PDO::PARAM_INT);
+    $qry->execute();
+    
+    $result = 0;
+    while($row=$qry->fetch(PDO::FETCH_NUM)){
+        $result = $row[0];
+    }
+    
+    unset($qry);
+    unset($dbh);
+    
+    if ($result === 0){
+        //creating array to have data structure compliant 
+        //with terminate function
+        $data = array('data' => array(1 => $id),
+                    'timeStamp' => $timeStamp);
+        
+        terminateEE($data);
+    }
 }
 ?>

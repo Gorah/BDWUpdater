@@ -28,8 +28,16 @@ function insertActions($arr, $actionT = 'New Hire'){
     
     $csv = $arr['data'];
     
-    if ($actionT == 'Rehire' || $actionT == 'LOA'){
+    if ($actionT == 'Rehire' || $actionT == 'Leave of Absence' || $actionT = 'Leave With Pay' || $actionT = 'Return From LOA'){
         closeActionRecord($csv);
+    }
+    
+    if ($csv[10] == 'Leave of Absence'){
+        $eStat = 'LOA';
+    } elseif ($csv[10] == 'Leave With Pay'){
+        $eStat = 'LwP';
+    } else {
+        $eStat = 'Active';
     }
     
     //    prepare insert into Actions table
@@ -44,7 +52,7 @@ function insertActions($arr, $actionT = 'New Hire'){
     $qry->bindParam(':eeID', $csv[1], PDO::PARAM_INT);
     $qry->bindParam(':aT', $actionT, PDO::PARAM_STR);
     $qry->bindParam(':aR', $actionT, PDO::PARAM_STR);
-    $qry->bindParam(':eStat', $csv[10], PDO::PARAM_STR);
+    $qry->bindParam(':eStat', $eStat, PDO::PARAM_STR);
     $qry->execute();
     
     unset($qry);
@@ -127,8 +135,6 @@ function closeActionRecord($csv){
     while($row = $qry->fetch(PDO::FETCH_NUM)){
         $targetID = $row[0];
     }
-    
-    echo($targetID);
     
     unset($qry);
     unset($dbh);

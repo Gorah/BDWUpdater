@@ -30,10 +30,15 @@ function run_update($inputData){
 // data fetching from the csv file with data. With each row fetched function
 // fires off chain of update functions to apply data to the DB
 function getArray($inputData){
+
+    //run termination section -> only done if it's MIG upload
+    if($inputData['functName'] == 'migGetAction'){
+        loadToDB($inputData);
+        findTerminations($inputData['timeStamp']);
+    }
+    
 //  file handle  pointing to uploaded file
     $fh = fopen($inputData['path'], "r");
-
-
 //  parsing csv file - each row is imported as an array then sent to a function
 //  for further actions. Function name is passed in and chosen by the type of
 //  update run selected by the user.
@@ -80,7 +85,7 @@ function insert_NewEE($csv){
 function update_EE($arr){
 
 //  $action variable holds info which action to perfom during update
-    $action = checkIfTerminated($arr['data'][1], $arr['timeStamp'], $arr['data'][10]);
+    $action = checkWhatAction($arr['data'][1], $arr['timeStamp'], $arr['data'][10]);
 
     switch($action){
         case 'update':
@@ -89,10 +94,10 @@ function update_EE($arr){
             //update action in tHR_JobDetails
             checkJobChange($arr);
             break;
-        case 'terminate':
-            //terminating employee
-            terminateEE($arr);
-            break;
+//        case 'terminate':
+//            //terminating employee
+//            terminateEE($arr);
+//            break;
         case 'rehire':
             //rehire action
             insertActions($arr, 'Rehire');
@@ -101,7 +106,10 @@ function update_EE($arr){
             insertJobDetails($arr['data']);
             break;
         case 'LOA':
-            insertActions($arr, 'LOA');
+            insertActions($arr, $arr['data'][10]);
+            break;
+        case 'retFromLOA':
+            insertActions($arr, 'Return From LOA');
             break;
         case 'end':
             break;
@@ -174,7 +182,7 @@ function contract_Type($val){
 //Only the newest record from BDW is taken into consideration while comparing
 //employment statuses between DB's.
 //Function returns string with action type to take.
-function checkIfTerminated($id, $stampDate, $eeStat){
+function checkWhatAction($id, $stampDate, $eeStat){
 
     //fetching newest employment status (the one with StartDate same or newer than
     //upload file's stamp date
@@ -219,16 +227,32 @@ function checkIfTerminated($id, $stampDate, $eeStat){
             } elseif ($eeStat == 'Leave of Absence' || $eeStat == 'Leave With Pay') {
                 return 'LOA';
             } else {
-                return 'terminate';
+                return 'end';
             }
             break;
         case 'Terminated':
-            if  ($eeStat == 'Terminated'){
-                return 'end';
-            } else {
+            if  ($eeStat == 'Active'){
                 return 'rehire';
+            } else {
+                return 'end';
             }
             break;
+       case 'Leave of Absence':
+           if ($eeStat == 'Active'){
+               return 'retFromLOA';
+           } else {
+               return 'end';
+           }
+           break;
+      case 'Leave With Pay':
+           if ($eeStat == 'Active'){
+               return 'retFromLOA';
+           } elseif ($eeStat == 'Leave of Absence') {
+               return 'LOA';
+           } else {
+               return 'end';
+           }
+           break;     
     }
 
 }
@@ -352,6 +376,33 @@ function checkIfMRUChanged($eeid, $mru){
         return 'TRUE';
     }
 }
+
+//goes through the file and prepares ID's to be loaded to temporary table
+function loadToDB($inputData){
+    //  file handle  pointing to uploaded file
+    $fh = fopen($inputData['path'], "r");
+    
+    //
+    while (($data = fgetcsv($fh)) !== FALSE) {
+         $fData = array('data' => $data,
+                        'timeStamp' => $inputData['timeStamp']);
+        inputToTable($fData);
+    }
+    
+     
+}
+
+//inserts data into MIG table
+function inputToTable($data){
+    $SQL = "INSERT INTO tHR_InMIG VALUES (:id)";
+    
+    $dbh = DB_Con();
+    $qry = $dbh->prepare($SQL);
+    $qry->bindParam(":id", $data['data'][1], PDO::PARAM_INT);
+    $qry->execute();
+}
+
+//REMOVE TERMINATION STEP FROM SWITCH HUBs
 
 //=============================================================================
 // >>>GTT UPLOAD PART
