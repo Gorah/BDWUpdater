@@ -103,7 +103,7 @@ function update_EE($arr){
             insertActions($arr, 'Rehire');
             //inserting employee to tHR_OpsMRU so he appears in his MRU basket
             insertOpsMru($arr);
-            insertJobDetails($arr['data']);
+            insertJobDetails($arr);
             break;
         case 'LOA':
             insertActions($arr, $arr['data'][10]);

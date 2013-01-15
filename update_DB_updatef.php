@@ -378,6 +378,27 @@ function findTerminations($timeStamp){
 
 //checks if there's ee in MIG table. If not, calls terminate function
 function compareToMIG($id, $timeStamp){
+
+  $SQL = "SELECT TOP 1 EmploymentStatus FROM tHR_Actions WHERE EEID = :id"
+    . " ORDER BY EndDate DESC"
+    
+    $dbh = DB_Con();
+  $qry = $dbh->prepare($SQL);
+  $qry->bindParam(':id', $id, PDO::PARAM_INT);
+  $qry->execute();
+
+  $empStatus = '';
+  while($row =$qry->fetch(PDO::FETCH_NUM){
+      $empStatus = $row[0];
+    }
+
+    if($empStatus == 'Terminated'){
+      return 0;
+    }
+    
+    unset($dbh);
+    unset($qry);
+
     $SQL = "SELECT Count(ID) FROM tHR_InMIG WHERE ID = :id";
     
     $dbh = DB_Con();
@@ -390,6 +411,8 @@ function compareToMIG($id, $timeStamp){
         $result = $row[0];
     }
     
+    
+    
     unset($qry);
     unset($dbh);
     
@@ -398,7 +421,7 @@ function compareToMIG($id, $timeStamp){
         //with terminate function
         $data = array('data' => array(1 => $id),
                     'timeStamp' => $timeStamp);
-        
+                print_r($data);
         terminateEE($data);
     }
 }
