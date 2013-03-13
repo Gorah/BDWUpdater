@@ -369,7 +369,16 @@ def jobchanged(row, strftime, cursor):
     elif result[1] != row[7] or result[2] != row[5] \
             or result[3] != row[11]:
         return result[0]
-        
+
+
+def insert_new_ee(row, cursor):
+    """
+    Inserts Personal info for a new employee
+    """
+    cursor.execute("""INSERT INTO tHR_Employee (ID, FirstName,
+                      LastName, Email) VALUES""", row[1], row[3],
+                      row[2], row[4])
+     
 
 def mruchanged(eeid, mru, cursor):
     """
@@ -393,7 +402,18 @@ def is_in_OpsMRU(eeid, cursor):
     in_mru = cursor.fetchone()
     return in_mru[0] == 1
 
-
+def check_new_hire(eeid, cursor):
+    """
+    Returns True if employee from MiG is not in BDW, as this employee
+    has to be hired in the system
+    """
+    cursor.execute("""SELECT Count(ID)
+                      FROM tHR_Employee
+                      WHERE ID = ?""", eeid)
+    result = cursor.fetchone()
+    return result[0] == 0
+    
+    
 def main(argv):
     """
     Task dispatcher function. Launches all the tasks one by one.
@@ -409,8 +429,11 @@ def main(argv):
     
     for row in ROWS_TO_PROCESS:
         with get_connection() as cursor:
-            action = check_for_action(row[1], argv[0], cursor)
-
+            if not check_new_hire(row[1], cursor):
+                action = check_for_action(row[1], argv[0], cursor)
+            else:
+                action = 'Hire'
+                
             class actionswitch(object):             
                 """
                 This class takes action value and basing on it's
@@ -419,6 +442,13 @@ def main(argv):
                 """        
                 def __getitem__(self, index):
                     return getattr(self, "case_"+index)()
+                def case_Hire(self):
+                    insert_new_ee(row, cursor)
+                    insert_new_action(row[1], stamp_date, cursor,
+                                      'New Hire', 'New Hire',
+                                      'Active')
+                    insert_new_job(row, stamp_date, cursor)
+                    #to be finished with inserting to opsmru
                 def case_update(self):
                     changeeedetails(row, cursor)
                     changejob(row, stamp_date, cursor)
