@@ -6,6 +6,7 @@ from contextlib import contextmanager
 
 MIG_IDS = {}
 TERMINATION_LIST = []
+ROWS_TO_PROCESS = []
 
 
 @contextmanager
@@ -18,17 +19,18 @@ def get_connection():
     cnxn.commit()
 
 
- def openfile_and_preload():
-     """
-     Function is opening the file and appends each employee ID to the
-     list for later checking
-     """
-     f = open('uploadData.csv', 'r')
+def openfile_and_preload():
+    """
+    Function is opening the file and appends each employee ID to the
+    list for later checking
+    """
+    f = open('uploadData.csv', 'r')
     csvdata = csv.reader(f)
     for row in csvdata:
         MIG_IDS[row[1]] = True
-
-
+        ROWS_TO_PROCESS.append(row)
+        
+        
 def check_terminations():
     """
     This function is checking all of the ID from tHR_Employee table
@@ -58,7 +60,7 @@ def terminate_employees(stamp_date):
             close_job_details(eeid, stamp_date, cursor)
             row_id = find_team_record(eeid, cursor)
             close_team_record(eeid, stamp_date, cursor)
-            remove_opsmru(eeid, cursor)
+            remove_opsmru(eeid, cursor)           
             
             
 def find_actions_record(eeid, cursor):
@@ -167,7 +169,85 @@ def insert_new_action(eeid, stamp_date, cursor):
                       VALUES (?, 'Termination', 'Left Company', ?,
                       '9999-12-31', ?, 'Mass Upload', 'Terminated')""",
                    eeid, start_date, mod_date)
-    
+
+
+def check_for_action(eeid, stamp_date, cursor):
+    """
+    Dispatch function checking what kind of action should be performed
+    on an employee.
+    It will return action that needs to be taken by comparing status
+    of given employee both in MiG and in BDW database.
+    Switch class does the comparison.
+    If BDW record is newer than MiG one, function will return before
+    using switch class.
+    """
+    cursor.execute("""SELECT TOP 1 EmploymentStatus, StarDate
+                      FROM tHR_Actions
+                      WHERE EEID = ?
+                      ORDER BY StarDate DESC, ID DESC""", eeid)
+    result = cursor.fetchone()
+
+    db_date = datetime.date(int(result[1][:4]), int(result[1][5:7]),
+                            int(result[1][8:10]))
+
+    stamp_date = datetime.date(int(stamp_date[:4]),
+                               int(stamp_date[5:7]), 01)
+    if db_date > stamp_date:
+        return 'End'
+
+    eestat = row[10]
+
+   
+    class switch(object):
+        """
+        Hacked switch statement - thanks Aaron!
+        Class is comparing statuses from MiG (eestat) and BDW (supplied
+        value). If Employee is:
+        *Active in both -> regular update to be conducted
+        *Active in BDW, LoA or LwP in MiG -> LoA or LwP action
+        *Terminated in BDW, Active in MiG -> rehire action to be conducted
+        *LoA/LwP in BDW, active in DBW -> return from LoA action
+        *LwP in BDW, LoA in MiG -> LoA Action
+        """
+        def __init__(self):
+            self.value = eestat
+        def __getitem__(self, index):
+            try:
+                return getattr(self, "case_"+index)()
+            except AttributeError:
+                return 'End'
+            
+        def case_Active(self):
+            if eestat == 'Active':
+                return 'update'
+            elif eestat == 'Leave of Absence': 
+                return 'LoA'
+            elif eestat == 'Leave With Pay':
+                return 'LwP'
+            else:
+                return 'End'
+
+        def case_Terminated(self):
+            if eestat == 'Active':
+                return 'rehire'
+            else:
+                return 'End'
+
+        def case_LoA(self):
+            if eestat == 'Active':
+                return 'retFromLoA'
+            else:
+                return 'End'
+
+        def case_LwP(self):
+            if eestat == 'Active':
+                return 'retFromLoA'
+            elif eestat == 'Leave of Absence':
+                return 'LoA'
+            else:
+                return 'End'
+
+    return switch()[result[0]]
     
 if __name__ == '__main__':
     """
@@ -181,6 +261,41 @@ def main(argv):
     """
     Task dispatcher function. Launches all the tasks one by one.
     """
+
+    
+    #Open file and load contents to memory
     openfile_and_preload()
+    #build a list of terminations
     check_terminations()
+    #terminate employees from the list
     terminate_employees(argv[0])
+    
+    for row in ROWS_TO_PROCESS:
+        with get_connection() as cursor:
+            action = check_for_action(row[1], argv[0], cursor)
+
+            class actionswitch(object):             
+                """
+                This class takes action value and basing on it's
+                content dispatches a job to correct chain of tasks
+                to perform update, rehire, LoA, LwP or returnFromLoA
+                """        
+                def __getitem__(self, index):
+                    return getattr(self, "case_"+index)()
+                def case_update(self):
+                    #run update functions
+                    return none
+                def case_rehire(self):
+                    #run rehire actions
+                    return none
+                def case_LoA(self):
+                    #run LoA
+                    return none
+                def case_LwP(self):
+                    #run LwP
+                    return none
+                def case_retFromLoA(self):
+                    #return from LoA
+                    return none
+
+            actionswitch()[action]
