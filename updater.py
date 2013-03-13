@@ -55,7 +55,8 @@ def terminate_employees(stamp_date):
         for eeid in TERMINATION_LIST:
             row_id = find_actions_record(eeid, cursor)
             close_actions_record(row_id, stamp_date, cursor)
-            insert_new_action(eeid, stamp_date, cursor)
+            insert_new_action(eeid, stamp_date, cursor, 'Termination',
+                              'Left Company', 'Terminated')
             row_id = find_job_details_record(eeid, cursor)
             close_job_details(eeid, stamp_date, cursor)
             row_id = find_team_record(eeid, cursor)
@@ -155,22 +156,46 @@ def remove_opsmru(eeid, cursor):
                       WHERE ID = ?""", eeid)
     
     
-def insert_new_action(eeid, stamp_date, cursor):
+def insert_new_action(eeid, stamp_date, cursor, a_type, reason, estat):
     """
-    Inserts new record with "Terminated status"
+    Inserts new record to tHR_Actions table
     """
     start_date = datetime.date(int(stamp_date[:4]),
                             int(stamp_date[5:7]), 01)
     mod_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    SQL = 
     cursor.execute("""INSERT INTO tHR_Actions
                      (EEID, ActionType, ReasonCode, StarDate, EndDate,
                       ModifiedDate, ModifiedBy, EmploymentStatus)
-                      VALUES (?, 'Termination', 'Left Company', ?,
-                      '9999-12-31', ?, 'Mass Upload', 'Terminated')""",
-                   eeid, start_date, mod_date)
+                      VALUES (?, ?, ?, ?,
+                      '9999-12-31', ?, 'Mass Upload', ?)""",
+                   eeid, a_type, reason, start_date, mod_date, estat)
 
+    
+def insert_new_job(row, stamp_date, cursor):
+    """
+    Inserts a new row into tHR_JobDetails table
+    """
+    if row[11] != 1:
+        fpt = 'Part Time'
+    else:
+        fpt = 'Full Time'
 
+    if row[0] == 'Regular':
+        wrk_contr = 'Permanent'
+    else:
+        wrk_contr = row[0]
+        
+    start_date = datetime.date(int(stamp_date[:4]),
+                               int(stamp_date[5:7]), 01)
+    mod_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute("""INSERT INTO tHR_JobDetails (EEID, Project,
+                   WorkContractType, CostCenter, FTE, FullPartTime,
+                   ModifiedBy, StartDate, EndDate, ModifiedDate)
+                   VALUES (?, ?, ?, ?, ?, ?, 'Mass Upload', ?,
+                   '9999-12-31', ?)""", row[1], row[7], wrk_contr,
+                   row[5], row[11], fpt, start_date, mod_date)
+
+    
 def check_for_action(eeid, stamp_date, cursor):
     """
     Dispatch function checking what kind of action should be performed
@@ -187,8 +212,7 @@ def check_for_action(eeid, stamp_date, cursor):
                       ORDER BY StarDate DESC, ID DESC""", eeid)
     result = cursor.fetchone()
 
-    db_date = datetime.date(int(result[1][:4]), int(result[1][5:7]),
-                            int(result[1][8:10]))
+    db_date = datetime.datetime.strptime(result[1], "%Y-%m-%d")
 
     stamp_date = datetime.date(int(stamp_date[:4]),
                                int(stamp_date[5:7]), 01)
@@ -248,13 +272,114 @@ def check_for_action(eeid, stamp_date, cursor):
                 return 'End'
 
     return switch()[result[0]]
+
+
+def changeeedetails(row, cursor):
+    """
+    This function checks if there was a change in personal information
+    and if yes, it performs update on employee record
+    """
+    if detailschanged(row, cursor):
+        cursor.execute("""UPDATE tHR_Employee
+                          SET FirstName = ?, LastName = ?, Email = ?
+                          WHERE ID = ?""", row[3], row[2], row[4],
+                       row[1])
+
+        
+def detailschanged(row, cursor):
+    """
+    This function is checking if any personal information for employee
+    has been changed in MiG. If so, function returns True.
+    """
+    cursor.execute("""SELECT Count(ID)
+                      WHERE ID = ?, FirstName = ?, LastName = ?,
+                      Email = ?""", row[1], row[3], row[2], row[4])
+    result = cursor.fetchone()
+    return not result[0] == 1:
+
+
+def changeMRU(eeid, MRU, cursor):
+    """
+    changes MRU note in tHR_OpsMRU. If there was an entry in the
+    table, it gets updated. Otherwise new row is inserted.
+    """
+    if is_in_OpsMRU(eeid, cursor):
+        cursor.execute("""UPDATE tHR_OpsMRU
+                      SET MRU = ?
+                      WHERE ID = ?""", MRU, eeid)
+    else:
+        cursor.execute("""INSERT INTO tHR_OpsMRU (ID, MRU)
+                          VALUES (?, ?)""", eeid, MRU)    
     
-if __name__ == '__main__':
+
+def changejob(row, stamp_date, cursor):
     """
-    Program entry point.
-    Command line argument should contain a date in YYYY-MM-DD format
+    This function checks if there was a change in job for employee
+    and if yes, it performs update on employee record
     """
-    main(sys.argv[1:])
+    row_to_change = jobchanged(row, stamp_date, cursor)
+    if row_to_change:
+        close_job_details(row_to_change, stamp_date, cursor)
+        insert_new_job(row, stamp_date, cursor)
+        insert_new_action(row[1], stamp_date, cursor, 'Job Change',
+                          'Job Change', 'Active')
+        if mruchanged(row[1], row[7], cursor):
+            close_team_record(row[1], stamp_date, cursor)
+            changeMRU(row[1], row[7], cursor)
+
+
+def jobchanged(row, strftime, cursor):
+    """
+    This function is fetching most up to date record for an employee
+    and checks for MRU, CC or FTE changes. If there was no changes or
+    StartDate of the record is greater than stamp date of report,
+    function will return False.
+    If there was no record, function will return False and print
+    notification about that fact.
+    In case of newest record not matching to MiG data function returns
+    row ID for further correction.
+    """
+    cursor.execute("""SELECT TOP 1 ID, Project, CostCenter, FTE, StartDate
+                      FROM tHR_JobDetails
+                      WHERE EEID =?
+                      ORDER BY StartDate, ID DESC""", row[1])
+    result = cursor.fetchone()
+    if not result:
+        print row[1] + " has no record in tHR_JobDetails! Skipped..."
+        return False
+    
+    db_date = datetime.datetime.strptime(result[1], "%Y-%m-%d")
+
+    stamp_date = datetime.date(int(stamp_date[:4]),
+                               int(stamp_date[5:7]), 01)
+    if db_date > stamp_date:
+        return False
+    elif result[1] != row[7] or result[2] != row[5] \
+            or result[3] != row[11]:
+        return result[0]
+        
+
+def mruchanged(eeid, mru, cursor):
+    """
+    Function checking if there was a change in MRU for employee
+    """
+    cursor.execute("""SELECT TOP 1 Project
+                      FROM tHR_JobDetails
+                      WHERE EEID = ?
+                      ORDER BY StartDate, ID DESC""", eeid)
+    bdw_mru = cursor.fetchone()
+    return not mru != bdw_mru[0]
+
+
+def is_in_OpsMRU(eeid, cursor):
+    """
+    returns True if a row for given employee already existsin DB
+    """
+    cursor.execute("""SELECT Count(ID)
+                      FROM tHR_OpsMRU
+                      WHERE ID = ?""", eeid)
+    in_mru = cursor.fetchone()
+    return in_mru[0] == 1
 
 
 def main(argv):
@@ -283,8 +408,8 @@ def main(argv):
                 def __getitem__(self, index):
                     return getattr(self, "case_"+index)()
                 def case_update(self):
-                    #run update functions
-                    return none
+                    changeeedetails(row, cursor)
+                    changejob(row, stamp_date, cursor)
                 def case_rehire(self):
                     #run rehire actions
                     return none
@@ -299,3 +424,11 @@ def main(argv):
                     return none
 
             actionswitch()[action]
+
+
+ if __name__ == '__main__':
+    """
+    Program entry point.
+    Command line argument should contain a date in YYYY-MM-DD format
+    """
+    main(sys.argv[1:])           
