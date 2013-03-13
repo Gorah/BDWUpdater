@@ -53,17 +53,29 @@ def terminate_employees(stamp_date):
     """
     with get_connection() as cursor:
         for eeid in TERMINATION_LIST:
-            row_id = find_actions_record(eeid, cursor)
-            close_actions_record(row_id, stamp_date, cursor)
-            insert_new_action(eeid, stamp_date, cursor, 'Termination',
-                              'Left Company', 'Terminated')
-            row_id = find_job_details_record(eeid, cursor)
-            close_job_details(eeid, stamp_date, cursor)
-            row_id = find_team_record(eeid, cursor)
-            close_team_record(eeid, stamp_date, cursor)
-            remove_opsmru(eeid, cursor)           
+            #check to not do double terminations (user made terms)
+            if not already_terminated(eeid, cursor):
+                row_id = find_actions_record(eeid, cursor)
+                close_actions_record(row_id, stamp_date, cursor)
+                insert_new_action(eeid, stamp_date, cursor,
+                                  'Termination', 'Left Company',
+                                  'Terminated')
+                row_id = find_job_details_record(eeid, cursor)
+                close_job_details(eeid, stamp_date, cursor)
+                row_id = find_team_record(eeid, cursor)
+                close_team_record(eeid, stamp_date, cursor)
+                remove_opsmru(eeid, cursor)           
             
-            
+
+def already_terminated(eeid, cursor):
+    cursor.execute("""SELECT Top 1 EmploymentStatus
+                      FROM tHR_Actions
+                      WHERE EEID = ?
+                      ORDER BY StarDate, ID DESC""", eeid)
+    result = cursor.fetchone()
+    return result[0] == 'Terminated'
+    
+                
 def find_actions_record(eeid, cursor):
      """
      This function finds most recent Action record for employee
