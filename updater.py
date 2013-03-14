@@ -311,12 +311,12 @@ def detailschanged(row, cursor):
     return not result[0] == 1:
 
 
-def changeMRU(eeid, MRU, cursor):
+def changeMRU(eeid, MRU, cursor, mode):
     """
     changes MRU note in tHR_OpsMRU. If there was an entry in the
     table, it gets updated. Otherwise new row is inserted.
     """
-    if is_in_OpsMRU(eeid, cursor):
+    if is_in_OpsMRU(eeid, cursor) and mode == 'change':
         cursor.execute("""UPDATE tHR_OpsMRU
                       SET MRU = ?
                       WHERE ID = ?""", MRU, eeid)
@@ -338,7 +338,7 @@ def changejob(row, stamp_date, cursor):
                           'Job Change', 'Active')
         if mruchanged(row[1], row[7], cursor):
             close_team_record(row[1], stamp_date, cursor)
-            changeMRU(row[1], row[7], cursor)
+            changeMRU(row[1], row[7], cursor, 'change')
 
 
 def jobchanged(row, strftime, cursor):
@@ -449,7 +449,7 @@ def main(argv):
                                       'New Hire', 'New Hire',
                                       'Active')
                     insert_new_job(row, stamp_date, cursor)
-                    #to be finished with inserting to opsmru
+                    changeMRU(row[1], row[7], cursor, 'add')
                 def case_update(self):
                     changeeedetails(row, cursor)
                     changejob(row, stamp_date, cursor)
