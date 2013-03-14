@@ -473,4 +473,11 @@ def main(argv):
     Program entry point.
     Command line argument should contain a date in YYYY-MM-DD format
     """
+    if len(sys.argv) == 1:
+        print "Missing date, please pass it as an argument!"
+        sys.exit()
+    elif not re.match(r"\d{4}-\d{2}-\d{2}", sys.argv[1]):
+        print "Incorrect date format - should be YYYY-MM-DD"
+        sys.exit()
+        
     main(sys.argv[1:])           
