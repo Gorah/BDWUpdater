@@ -2,6 +2,7 @@ import csv
 import pyodbc
 import sys
 import datetime
+import re
 from contextlib import contextmanager
 
 MIG_IDS = {}
