@@ -332,6 +332,8 @@ def changejob(row, stamp_date, cursor):
     """
     row_to_change = jobchanged(row, stamp_date, cursor)
     if row_to_change:
+        close_actions_record(find_actions_record(row[1], cursor),
+                             stamp_date, cursor)
         close_job_details(row_to_change, stamp_date, cursor)
         insert_new_job(row, stamp_date, cursor)
         insert_new_action(row[1], stamp_date, cursor, 'Job Change',
@@ -454,21 +456,35 @@ def main(argv):
                     changeeedetails(row, cursor)
                     changejob(row, stamp_date, cursor)
                 def case_rehire(self):
-                    #add close action record function (also in job change)
+                    close_actions_record(find_actions_record(row[1],
+                                                             cursor),
+                                         stamp_date, cursor)
                     insert_new_action(row[1], stamp_date, cursor,
                                       'Rehire', 'Rehire',
                                       'Active')
                     insert_new_job(row, stamp_date, cursor)
                     changeMRU(row[1], row[7], cursor, 'add')
                 def case_LoA(self):
-                    #run LoA
-                    return none
+                    close_actions_record(find_actions_record(row[1],
+                                                             cursor),
+                                         stamp_date, cursor)
+                    insert_new_action(row[1], stamp_date, cursor,
+                                      'Leave of Absence',
+                                      'Leave of Absence', 'LoA') 
                 def case_LwP(self):
-                    #run LwP
-                    return none
+                     close_actions_record(find_actions_record(row[1],
+                                                             cursor),
+                                         stamp_date, cursor)
+                     insert_new_action(row[1], stamp_date, cursor,
+                                       'Leave with Pay',
+                                       'Leave with Pay', 'LwP')
                 def case_retFromLoA(self):
-                    #return from LoA
-                    return none
+                    close_actions_record(find_actions_record(row[1],
+                                                             cursor),
+                                         stamp_date, cursor)
+                     insert_new_action(row[1], stamp_date, cursor,
+                                       'Return from LoA',
+                                       'Return from LoA', 'Active')
 
             actionswitch()[action]
 
