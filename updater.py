@@ -454,8 +454,12 @@ def main(argv):
                     changeeedetails(row, cursor)
                     changejob(row, stamp_date, cursor)
                 def case_rehire(self):
-                    #run rehire actions
-                    return none
+                    #add close action record function (also in job change)
+                    insert_new_action(row[1], stamp_date, cursor,
+                                      'Rehire', 'Rehire',
+                                      'Active')
+                    insert_new_job(row, stamp_date, cursor)
+                    changeMRU(row[1], row[7], cursor, 'add')
                 def case_LoA(self):
                     #run LoA
                     return none
