@@ -15,45 +15,62 @@ def get_connection():
     """
     Prepare connection to database
     """
-    cnxn = pyodbc.connect('DRIVER={SQL SERVER};SERVER=localhost;DATABASE=BPO_DataWarehouse;UID=Admin;PWD=30aXH15lx92')
+    cnxn = pyodbc.connect('DRIVER={SQL SERVER};SERVER=localhost;DATABASE=BPO_DataWarehouse;UID=AppLogon;PWD=pass')
     yield cnxn.cursor()
     cnxn.commit()
 
 
-def openfile_and_preload():
+@contextmanager    
+def get_log():
+    logfile = open('update_log.log', 'w')
+    yield logfile
+    logfile.close()
+
+
+def openfile_and_preload(logf):
     """
     Function is opening the file and appends each employee ID to the
     list for later checking
     """
+    logf.write('opening file\n')
     f = open('uploadData.csv', 'r')
+    logf.write('file opened\n')
     csvdata = csv.reader(f)
     for row in csvdata:
         MIG_IDS[row[1]] = True
         ROWS_TO_PROCESS.append(row)
+
+    logf.write('File read and loaded\n')
         
         
-def check_terminations():
+def check_terminations(logf):
     """
     This function is checking all of the ID from tHR_Employee table
     and looking for cases where there's no match against tHR_InMIG.
     This means that employee has been terminated and needs to be
     removed from BDW.
     """
+    logf.write('Checking for terminations\n')
     with get_connection() as cursor:
         cursor.execute("""SELECT ID
                           FROM vw_HR_ActiveEEList""")
         for row in cursor.fetchall():
-            if not MIG_IDS.get(row[0]):
+            if not MIG_IDS.get(str(row[0])):
                 TERMINATION_LIST.append(row[0])
 
+    logf.write('Done... employees to terminate count: '
+               + str(len(TERMINATION_LIST)) + '\n')
+
                 
-def terminate_employees(stamp_date):
+def terminate_employees(stamp_date, logf):
     """
     Dispatches employees for termination using list of employees and
     sending it to task functions
     """
+    logf.write('Starting terminations\n')
     with get_connection() as cursor:
         for eeid in TERMINATION_LIST:
+            
             #check to not do double terminations (user made terms)
             if not already_terminated(eeid, cursor):
                 row_id = find_actions_record(eeid, cursor)
@@ -61,12 +78,13 @@ def terminate_employees(stamp_date):
                 insert_new_action(eeid, stamp_date, cursor,
                                   'Termination', 'Left Company',
                                   'Terminated')
-                row_id = find_job_details_record(eeid, cursor)
-                close_job_details(eeid, stamp_date, cursor)
+                row_id = find_job_details_record(eeid, cursor)      
+                close_job_details(row_id, stamp_date, cursor)
                 row_id = find_team_record(eeid, cursor)
-                close_team_record(eeid, stamp_date, cursor)
-                remove_opsmru(eeid, cursor)           
-            
+                close_team_record(row_id, stamp_date, cursor)
+                remove_opsmru(eeid, cursor)
+            logf.write('Terminations done...\n')
+                
 
 def already_terminated(eeid, cursor):
     cursor.execute("""SELECT Top 1 EmploymentStatus
@@ -119,15 +137,14 @@ def close_actions_record(row_id, stamp_date, cursor):
     This function is closing existing action record for terminated
     employee in tHR_Actions table
     """
-    enddate = datetime.date(int(stamp_date[:4]),
-                            int(stamp_date[5:7]), 01)
-    enddate = enddate - datetime.timedelta(days=1)
+    enddate = stamp_date - datetime.timedelta(days=1)
     enddate = enddate.strftime("%Y-%m-%d")
     mod_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""UPDATE tHR_Actions
                       SET EndDate = ?, ModifiedDate = ?,
                       ModifiedBy = 'Mass Upload'
-                      WHERE ID = ?""", enddate, mod_date, row_id)
+                      WHERE ID = ?""", str(enddate), str(mod_date),
+                   row_id)
     
 
 def close_job_details(row_id, stamp_date, cursor):
@@ -135,30 +152,27 @@ def close_job_details(row_id, stamp_date, cursor):
     This function is closing existing record for terminated
     employee in tHR_JobDetails table
     """
-    enddate = datetime.date(int(stamp_date[:4]),
-                            int(stamp_date[5:7]), 01)
-    enddate = enddate - datetime.timedelta(days=1)
+    enddate = stamp_date - datetime.timedelta(days=1)
     enddate = enddate.strftime("%Y-%m-%d")
     mod_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""UPDATE tHR_JobDetails
                       SET EndDate = ?, ModifiedDate = ?,
                       ModifiedBy = 'Mass Upload'
-                      WHERE ID = ?""", enddate, mod_date, row_id)
+                      WHERE ID = ?""", str(enddate), str(mod_date),
+                   row_id)
     
 
-def close_team_record(eeid, stamp_date, cursor):
+def close_team_record(row_id, stamp_date, cursor):
     """
     This function is closing existingrecord for terminated
     employee in tHR_TeamMembers table, removing that person from
     the team
     """
-    enddate = datetime.date(int(stamp_date[:4]),
-                            int(stamp_date[5:7]), 01)
-    enddate = enddate - datetime.timedelta(days=1)
+    enddate = stamp_date - datetime.timedelta(days=1)
     enddate = enddate.strftime("%Y-%m-%d")
     cursor.execute("""UPDATE tHR_TeamMembers
                       SET EndDate = ?
-                      WHERE ID = ?""", enddate, row_id)
+                      WHERE ID = ?""", str(enddate), row_id)
     
 
 def remove_opsmru(eeid, cursor):
@@ -173,15 +187,14 @@ def insert_new_action(eeid, stamp_date, cursor, a_type, reason, estat):
     """
     Inserts new record to tHR_Actions table
     """
-    start_date = datetime.date(int(stamp_date[:4]),
-                            int(stamp_date[5:7]), 01)
     mod_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""INSERT INTO tHR_Actions
                      (EEID, ActionType, ReasonCode, StarDate, EndDate,
                       ModifiedDate, ModifiedBy, EmploymentStatus)
                       VALUES (?, ?, ?, ?,
                       '9999-12-31', ?, 'Mass Upload', ?)""",
-                   eeid, a_type, reason, start_date, mod_date, estat)
+                   eeid, a_type, reason, str(stamp_date),
+                   str(mod_date), estat)
 
     
 def insert_new_job(row, stamp_date, cursor):
@@ -198,18 +211,16 @@ def insert_new_job(row, stamp_date, cursor):
     else:
         wrk_contr = row[0]
         
-    start_date = datetime.date(int(stamp_date[:4]),
-                               int(stamp_date[5:7]), 01)
     mod_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute("""INSERT INTO tHR_JobDetails (EEID, Project,
                    WorkContractType, CostCenter, FTE, FullPartTime,
                    ModifiedBy, StartDate, EndDate, ModifiedDate)
                    VALUES (?, ?, ?, ?, ?, ?, 'Mass Upload', ?,
                    '9999-12-31', ?)""", row[1], row[7], wrk_contr,
-                   row[5], row[11], fpt, start_date, mod_date)
+                   row[5], row[11], fpt, str(stamp_date), str(mod_date))
 
     
-def check_for_action(eeid, stamp_date, cursor):
+def check_for_action(row, stamp_date, cursor, logf):
     """
     Dispatch function checking what kind of action should be performed
     on an employee.
@@ -222,14 +233,17 @@ def check_for_action(eeid, stamp_date, cursor):
     cursor.execute("""SELECT TOP 1 EmploymentStatus, StarDate
                       FROM tHR_Actions
                       WHERE EEID = ?
-                      ORDER BY StarDate DESC, ID DESC""", eeid)
+                      ORDER BY StarDate DESC, ID DESC""", row[1])
     result = cursor.fetchone()
-
+    
+    if not result:
+        logf.write('Employee ' + str(row[1])
+                   + ' has no action record.\n')
+        return 'End'
+    
     db_date = datetime.datetime.strptime(result[1], "%Y-%m-%d")
 
-    stamp_date = datetime.date(int(stamp_date[:4]),
-                               int(stamp_date[5:7]), 01)
-    if db_date > stamp_date:
+    if db_date.date() > stamp_date:
         return 'End'
 
     eestat = row[10]
@@ -256,7 +270,11 @@ def check_for_action(eeid, stamp_date, cursor):
             
         def case_Active(self):
             if eestat == 'Active':
-                return 'update'
+                
+                if jobchanged(row, stamp_date, cursor, logf):
+                    return 'update'
+                else:
+                    return 'End'
             elif eestat == 'Leave of Absence': 
                 return 'LoA'
             elif eestat == 'Leave With Pay':
@@ -305,10 +323,11 @@ def detailschanged(row, cursor):
     has been changed in MiG. If so, function returns True.
     """
     cursor.execute("""SELECT Count(ID)
-                      WHERE ID = ?, FirstName = ?, LastName = ?,
-                      Email = ?""", row[1], row[3], row[2], row[4])
+                      FROM tHR_Employee
+                      WHERE ID = ? AND FirstName = ? AND LastName = ?
+                      AND Email = ?""", row[1], row[3], row[2], row[4])
     result = cursor.fetchone()
-    return not result[0] == 1:
+    return not result[0] == 1
 
 
 def changeMRU(eeid, MRU, cursor, mode):
@@ -325,12 +344,13 @@ def changeMRU(eeid, MRU, cursor, mode):
                           VALUES (?, ?)""", eeid, MRU)    
     
 
-def changejob(row, stamp_date, cursor):
+def changejob(row, stamp_date, cursor, logf):
     """
     This function checks if there was a change in job for employee
     and if yes, it performs update on employee record
     """
-    row_to_change = jobchanged(row, stamp_date, cursor)
+    
+    row_to_change = jobchanged(row, stamp_date, cursor, logf)
     if row_to_change:
         close_actions_record(find_actions_record(row[1], cursor),
                              stamp_date, cursor)
@@ -343,7 +363,7 @@ def changejob(row, stamp_date, cursor):
             changeMRU(row[1], row[7], cursor, 'change')
 
 
-def jobchanged(row, strftime, cursor):
+def jobchanged(row, stamp_date, cursor, logf):
     """
     This function is fetching most up to date record for an employee
     and checks for MRU, CC or FTE changes. If there was no changes or
@@ -357,30 +377,30 @@ def jobchanged(row, strftime, cursor):
     cursor.execute("""SELECT TOP 1 ID, Project, CostCenter, FTE, StartDate
                       FROM tHR_JobDetails
                       WHERE EEID =?
-                      ORDER BY StartDate, ID DESC""", row[1])
+                      ORDER BY StartDate DESC, ID DESC""", row[1])
     result = cursor.fetchone()
     if not result:
-        print row[1] + " has no record in tHR_JobDetails! Skipped..."
+        logf.write(row[1] +
+                   " has no record in tHR_JobDetails! Skipped...")
         return False
     
-    db_date = datetime.datetime.strptime(result[1], "%Y-%m-%d")
-
-    stamp_date = datetime.date(int(stamp_date[:4]),
-                               int(stamp_date[5:7]), 01)
-    if db_date > stamp_date:
+    db_date = datetime.datetime.strptime(result[4], "%Y-%m-%d")
+        
+    if db_date.date() > stamp_date:
         return False
     elif result[1] != row[7] or result[2] != row[5] \
-            or result[3] != row[11]:
+            or result[3] != float(row[11]):
         return result[0]
+    logf.write(str(row[1]) + ' skipped - no action.\n')
 
 
 def insert_new_ee(row, cursor):
     """
     Inserts Personal info for a new employee
     """
-    cursor.execute("""INSERT INTO tHR_Employee (ID, FirstName,
-                      LastName, Email) VALUES""", row[1], row[3],
-                      row[2], row[4])
+    cursor.execute("""INSERT INTO tHR_Employee
+                      (ID, FirstName, LastName, Email) VALUES
+                      (?, ?, ?, ?)""", row[1], row[3], row[2], row[4])
      
 
 def mruchanged(eeid, mru, cursor):
@@ -415,81 +435,97 @@ def check_new_hire(eeid, cursor):
                       WHERE ID = ?""", eeid)
     result = cursor.fetchone()
     return result[0] == 0
-    
-    
-def main(argv):
+
+     
+def main_funct(stamp_date):
     """
     Task dispatcher function. Launches all the tasks one by one.
     """
-
-    
+    with get_log() as logf:
+        logf.write('opening file\n')
+        stamp_date = datetime.date(int(stamp_date[:4]),
+                               int(stamp_date[5:7]), 01)
     #Open file and load contents to memory
-    openfile_and_preload()
+        openfile_and_preload(logf)
     #build a list of terminations
-    check_terminations()
+        check_terminations(logf)
     #terminate employees from the list
-    terminate_employees(argv[0])
-    
-    for row in ROWS_TO_PROCESS:
-        with get_connection() as cursor:
-            if not check_new_hire(row[1], cursor):
-                action = check_for_action(row[1], argv[0], cursor)
-            else:
-                action = 'Hire'
-                
-            class actionswitch(object):             
-                """
-                This class takes action value and basing on it's
-                content dispatches a job to correct chain of tasks
-                to perform update, rehire, LoA, LwP or returnFromLoA
-                """        
-                def __getitem__(self, index):
-                    return getattr(self, "case_"+index)()
-                def case_Hire(self):
-                    insert_new_ee(row, cursor)
-                    insert_new_action(row[1], stamp_date, cursor,
-                                      'New Hire', 'New Hire',
-                                      'Active')
-                    insert_new_job(row, stamp_date, cursor)
-                    changeMRU(row[1], row[7], cursor, 'add')
-                def case_update(self):
-                    changeeedetails(row, cursor)
-                    changejob(row, stamp_date, cursor)
-                def case_rehire(self):
-                    close_actions_record(find_actions_record(row[1],
-                                                             cursor),
-                                         stamp_date, cursor)
-                    insert_new_action(row[1], stamp_date, cursor,
-                                      'Rehire', 'Rehire',
-                                      'Active')
-                    insert_new_job(row, stamp_date, cursor)
-                    changeMRU(row[1], row[7], cursor, 'add')
-                def case_LoA(self):
-                    close_actions_record(find_actions_record(row[1],
-                                                             cursor),
-                                         stamp_date, cursor)
-                    insert_new_action(row[1], stamp_date, cursor,
-                                      'Leave of Absence',
-                                      'Leave of Absence', 'LoA') 
-                def case_LwP(self):
-                     close_actions_record(find_actions_record(row[1],
-                                                             cursor),
-                                         stamp_date, cursor)
-                     insert_new_action(row[1], stamp_date, cursor,
-                                       'Leave with Pay',
-                                       'Leave with Pay', 'LwP')
-                def case_retFromLoA(self):
-                    close_actions_record(find_actions_record(row[1],
-                                                             cursor),
-                                         stamp_date, cursor)
-                     insert_new_action(row[1], stamp_date, cursor,
-                                       'Return from LoA',
-                                       'Return from LoA', 'Active')
+        terminate_employees(stamp_date, logf)
+        
+        for row in ROWS_TO_PROCESS:
+            with get_connection() as cursor:
+                if not check_new_hire(row[1], cursor):
+                    action = check_for_action(row, stamp_date,
+                                              cursor, logf)
+                else:
+                    action = 'Hire'
+                    
+                class actionswitch(object):             
+                    """
+                    This class takes action value and basing on it's
+                    content dispatches a job to correct chain of tasks
+                    to perform update, rehire, LoA, LwP or returnFromLoA
+                    """        
+                    def __getitem__(self, index):
+                        return getattr(self, "case_"+index)()
+                    def case_Hire(self):
+                        insert_new_ee(row, cursor)
+                        insert_new_action(row[1], stamp_date, cursor,
+                                          'New Hire', 'New Hire',
+                                          'Active')
+                        insert_new_job(row, stamp_date, cursor)
+                        changeMRU(row[1], row[7], cursor, 'add')
+                        logf.write(str(row[1]) + ' hired. \n')
+                        
+                    def case_update(self):
+                        changeeedetails(row, cursor)
+                        changejob(row, stamp_date, cursor, logf)
+                        logf.write(str(row[1]) + ' updated. \n')
+                            
+                    def case_rehire(self):
+                        close_actions_record(
+                            find_actions_record(row[1], cursor),
+                            stamp_date, cursor)
+                        insert_new_action(row[1], stamp_date, cursor,
+                                          'Rehire', 'Rehire',
+                                          'Active')
+                        insert_new_job(row, stamp_date, cursor)
+                        changeMRU(row[1], row[7], cursor, 'add')
+                        logf.write(str(row[1]) + ' updated. \n')
+                        
+                    def case_LoA(self):
+                        close_actions_record(find_actions_record(
+                                row[1], cursor), stamp_date, cursor)
+                        insert_new_action(row[1], stamp_date, cursor,
+                                          'Leave of Absence',
+                                          'Leave of Absence', 'LoA')
+                        logf.write(str(row[1]) + ' updated. \n')
+                        
+                    def case_LwP(self):
+                        close_actions_record(
+                            find_actions_record(row[1], cursor),
+                            stamp_date, cursor)
+                        insert_new_action(row[1], stamp_date, cursor,
+                                          'Leave with Pay',
+                                          'Leave with Pay', 'LwP')
+                        logf.write(str(row[1]) + ' updated. \n')
+                        
+                    def case_retFromLoA(self):
+                        close_actions_record(
+                            find_actions_record(row[1], cursor),
+                            stamp_date, cursor)
+                        insert_new_action(row[1], stamp_date, cursor,
+                                          'Return from LoA',
+                                          'Return from LoA', 'Active')
+                        logf.write(str(row[1]) + ' updated. \n')
+                        
+                    def case_End(self):
+                        return None
 
-            actionswitch()[action]
+                actionswitch()[action]
 
 
- if __name__ == '__main__':
+if __name__ == '__main__':
     """
     Program entry point.
     Command line argument should contain a date in YYYY-MM-DD format
@@ -500,5 +536,5 @@ def main(argv):
     elif not re.match(r"\d{4}-\d{2}-\d{2}", sys.argv[1]):
         print "Incorrect date format - should be YYYY-MM-DD"
         sys.exit()
-        
-    main(sys.argv[1:])           
+
+    main_funct(sys.argv[1])           
