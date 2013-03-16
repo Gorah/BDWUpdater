@@ -22,6 +22,9 @@ def get_connection():
 
 @contextmanager    
 def get_log():
+    """
+    File for a update log handle.
+    """
     logfile = open('update_log.log', 'w')
     yield logfile
     logfile.close()
@@ -87,6 +90,9 @@ def terminate_employees(stamp_date, logf):
                 
 
 def already_terminated(eeid, cursor):
+    """
+    Function is checking if employee has been already terminated
+    """
     cursor.execute("""SELECT Top 1 EmploymentStatus
                       FROM tHR_Actions
                       WHERE EEID = ?
@@ -441,6 +447,7 @@ def main_funct(stamp_date):
     """
     Task dispatcher function. Launches all the tasks one by one.
     """
+    #opening log file
     with get_log() as logf:
         logf.write('opening file\n')
         stamp_date = datetime.date(int(stamp_date[:4]),
@@ -530,6 +537,7 @@ if __name__ == '__main__':
     Program entry point.
     Command line argument should contain a date in YYYY-MM-DD format
     """
+    #making sure that date will be passed and in correct format
     if len(sys.argv) == 1:
         print "Missing date, please pass it as an argument!"
         sys.exit()
